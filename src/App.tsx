@@ -101,7 +101,7 @@ export const App: React.FC = () => {
 
   return (
     <div
-      className={`min-h-screen flex flex-col justify-between transition-colors duration-300 selection:bg-emerald-300 ${
+      className={`min-h-screen flex flex-col justify-start transition-colors duration-300 selection:bg-emerald-300 ${
         theme === 'felt' ? 'theme-felt' : 'theme-chalk'
       }`}
     >
@@ -124,18 +124,16 @@ export const App: React.FC = () => {
         onOpenRoom={() => setIsRoomOpen(true)}
       />
 
-      {/* Main Content Area */}
-      <main className="flex-1 flex flex-col justify-between max-w-xl mx-auto w-full py-1">
-        {/* 2. Middle Area: Player Cards Grid (2 to 6 Players supported with glowing active border) */}
-        <div className="flex-1 flex flex-col justify-center">
-          <PlayerCardsGrid
-            players={state.players}
-            activePlayerIndex={state.activePlayerIndex}
-            onSelectPlayer={() => {
-              // Direct player selection allowed
-            }}
-          />
-        </div>
+      {/* Main Content Area: Uniform spacing throughout with zero dead gaps */}
+      <main className="flex-1 max-w-xl mx-auto w-full px-3 py-2.5 sm:px-4 flex flex-col gap-2.5 sm:gap-3 justify-start">
+        {/* 2. Player Cards Grid (2 to 6 Players supported with glowing active border) */}
+        <PlayerCardsGrid
+          players={state.players}
+          activePlayerIndex={state.activePlayerIndex}
+          onSelectPlayer={() => {
+            // Direct player selection allowed
+          }}
+        />
 
         {/* 3. Bottom Thumb Zone: Snooker Balls, Foul Section, and Giant "Turn Over" Button */}
         <BallControls

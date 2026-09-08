@@ -31,8 +31,8 @@ export const PlayerCardsGrid: React.FC<PlayerCardsGridProps> = ({
   };
 
   return (
-    <section className="w-full max-w-xl mx-auto px-2.5 py-1.5 sm:px-4">
-      <div className={`grid gap-2 sm:gap-3 ${getGridColsClass()}`}>
+    <section className="w-full">
+      <div className={`grid gap-2 sm:gap-2.5 ${getGridColsClass()}`}>
         {players.map((player, idx) => (
           <PlayerCard
             key={player.id}

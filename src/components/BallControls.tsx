@@ -85,9 +85,9 @@ export const BallControls: React.FC<BallControlsProps> = ({
   };
 
   return (
-    <div className="w-full max-w-xl mx-auto px-3 pt-2 pb-5 sm:px-4 flex flex-col gap-3">
+    <div className="w-full flex flex-col gap-2.5 sm:gap-3">
       {/* 1. Balls Grid (Primary Scoring Zone) */}
-      <div className="bg-white/90 rounded-2xl p-3 sm:p-4 border border-stone-200/90 shadow-sm">
+      <div className="bg-white/90 backdrop-blur-sm rounded-2xl p-2.5 sm:p-3.5 border border-stone-200/90 shadow-sm">
         <div className="flex items-center justify-between mb-2">
           <div className="flex items-center gap-1.5">
             <span className="text-xs font-extrabold uppercase tracking-wider text-stone-700">
