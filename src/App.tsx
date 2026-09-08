@@ -7,10 +7,14 @@ import { SetupModal } from './components/SetupModal';
 import { EndGameModal } from './components/EndGameModal';
 import { HistoryDrawer } from './components/HistoryDrawer';
 import { ConfigModal } from './components/ConfigModal';
+import { RoomModal } from './components/RoomModal';
 
 export const App: React.FC = () => {
   const {
     state,
+    roomCode,
+    realtimeStatus,
+    setRoomCode,
     canUndo,
     canRedo,
     addPoints,
@@ -27,6 +31,7 @@ export const App: React.FC = () => {
   const [isEndGameOpen, setIsEndGameOpen] = useState(false);
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
   const [isConfigOpen, setIsConfigOpen] = useState(false);
+  const [isRoomOpen, setIsRoomOpen] = useState(false);
   const [, setConfigRefreshKey] = useState(0);
 
   const nextPlayerIndex = (state.activePlayerIndex + 1) % state.players.length;
@@ -39,10 +44,12 @@ export const App: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-noise text-stone-900 flex flex-col justify-between selection:bg-emerald-200">
-      {/* 1. Sticky Top Bar: Match timer, turn counter, undo, redo, settings, end game */}
+      {/* 1. Sticky Top Bar: Match timer, turn counter, room live badge, undo, redo, settings, end game */}
       <TopBar
         matchStartTime={state.matchStartTime}
         turnCount={state.turnCount}
+        roomCode={roomCode}
+        realtimeStatus={realtimeStatus}
         canUndo={canUndo}
         canRedo={canRedo}
         onUndo={undo}
@@ -51,6 +58,7 @@ export const App: React.FC = () => {
         onOpenHistory={() => setIsHistoryOpen(true)}
         onOpenSettings={() => setIsConfigOpen(true)}
         onNewGameClick={() => setIsSetupOpen(true)}
+        onOpenRoom={() => setIsRoomOpen(true)}
       />
 
       {/* Main Content Area */}
@@ -103,6 +111,14 @@ export const App: React.FC = () => {
         isOpen={isConfigOpen}
         onClose={() => setIsConfigOpen(false)}
         onConfigSaved={() => setConfigRefreshKey(prev => prev + 1)}
+      />
+
+      <RoomModal
+        isOpen={isRoomOpen}
+        onClose={() => setIsRoomOpen(false)}
+        roomCode={roomCode}
+        onSwitchRoom={setRoomCode}
+        realtimeStatus={realtimeStatus}
       />
     </div>
   );

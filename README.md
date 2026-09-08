@@ -6,6 +6,7 @@ A super-fast, responsive, mobile-first Snooker Scoreboard and Match History web 
 
 ## ✨ Key Features
 
+- **📡 Realtime Multi-Device Sync**: Any number of players beside the pool table can open the match link on their mobile phones and control/view the live scoreboard simultaneously with sub-50ms Supabase Realtime synchronization!
 - **📱 Mobile-First Thumb Ergonomics**: Designed for single-handed table-side operation with `touch-action: manipulation` for zero-delay taps.
 - **🎱 Authentic Tactile Aesthetics**: Warm vintage chalk white (`#FAF8F5`) canvas with subtle noise grain overlay, realistic 3D radial sphere snooker balls with specular shine highlights.
 - **⚡ Dual Commit Interaction**: Double-tap points commit mode to prevent accidental brushes, with an instant toggle for express single-tap scoring.
@@ -28,16 +29,14 @@ cd snook
 npm install
 ```
 
-### 2. Configure Environment (Optional)
+### 2. Configure Environment
 
-Create a `.env` file in the root directory:
+Create a `.env` file in the root directory (or set in Vercel):
 
 ```env
-VITE_SUPABASE_URL=https://your-project.supabase.co
+VITE_SUPABASE_URL=https://uptveukykfswvkhtxnar.supabase.co
 VITE_SUPABASE_ANON_KEY=your-anon-public-key
 ```
-
-*(Note: The app runs in offline local-first mode out-of-the-box even without Supabase credentials! You can also enter credentials directly via the in-app Settings modal).*
 
 ### 3. Start Development Server
 
@@ -45,7 +44,7 @@ VITE_SUPABASE_ANON_KEY=your-anon-public-key
 npm run dev
 ```
 
-Visit `http://localhost:5173` on your mobile browser or desktop.
+Visit `http://localhost:5173` on your mobile browser or desktop. Share the room link (`?room=TABLE-XX`) so everyone at the table can join the live frame!
 
 ---
 
@@ -54,7 +53,16 @@ Visit `http://localhost:5173` on your mobile browser or desktop.
 Run the following SQL script in your Supabase project's **SQL Editor**:
 
 ```sql
--- 1. Matches Table
+-- 1. Live Matches Table (For Realtime Multi-Device Sync across phones)
+CREATE TABLE IF NOT EXISTS live_matches (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    room_code TEXT UNIQUE NOT NULL,
+    state JSONB NOT NULL,
+    created_at TIMESTAMPTZ DEFAULT now() NOT NULL,
+    updated_at TIMESTAMPTZ DEFAULT now() NOT NULL
+);
+
+-- 2. Matches Table (Archived / Finalized Frames)
 CREATE TABLE IF NOT EXISTS matches (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     created_at TIMESTAMPTZ DEFAULT now() NOT NULL,
@@ -63,7 +71,7 @@ CREATE TABLE IF NOT EXISTS matches (
     duration_seconds INT DEFAULT 0
 );
 
--- 2. Match Players Table
+-- 3. Match Players Table
 CREATE TABLE IF NOT EXISTS match_players (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     match_id UUID NOT NULL REFERENCES matches(id) ON DELETE CASCADE,
@@ -72,18 +80,24 @@ CREATE TABLE IF NOT EXISTS match_players (
     rank INT NOT NULL
 );
 
--- 3. Indexes & Row Level Security
+-- 4. Indexes & Row Level Security
+CREATE INDEX IF NOT EXISTS idx_live_matches_room_code ON live_matches(room_code);
 CREATE INDEX IF NOT EXISTS idx_matches_created_at ON matches(created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_match_players_match_id ON match_players(match_id);
 
+ALTER TABLE live_matches ENABLE ROW LEVEL SECURITY;
 ALTER TABLE matches ENABLE ROW LEVEL SECURITY;
 ALTER TABLE match_players ENABLE ROW LEVEL SECURITY;
 
+CREATE POLICY "Allow public all live_matches" ON live_matches FOR ALL USING (true) WITH CHECK (true);
 CREATE POLICY "Allow public read matches" ON matches FOR SELECT USING (true);
 CREATE POLICY "Allow public insert matches" ON matches FOR INSERT WITH CHECK (true);
 CREATE POLICY "Allow public read match_players" ON match_players FOR SELECT USING (true);
 CREATE POLICY "Allow public insert match_players" ON match_players FOR INSERT WITH CHECK (true);
 CREATE POLICY "Allow public delete matches" ON matches FOR DELETE USING (true);
+
+-- 5. Enable Supabase Realtime for live_matches
+ALTER PUBLICATION supabase_realtime ADD TABLE live_matches;
 ```
 
 ---

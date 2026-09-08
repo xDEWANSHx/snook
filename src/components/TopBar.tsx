@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { RotateCcw, RotateCw, Flag, History, Settings, ShieldCheck } from 'lucide-react';
+import { RotateCcw, RotateCw, Flag, History, Settings, ShieldCheck, Radio } from 'lucide-react';
 import { isSupabaseConfigured } from '../lib/supabase';
 
 interface TopBarProps {
   matchStartTime: number;
   turnCount: number;
+  roomCode: string;
+  realtimeStatus: 'SUBSCRIBED' | 'CONNECTING' | 'DISCONNECTED';
   canUndo: boolean;
   canRedo: boolean;
   onUndo: () => void;
@@ -13,11 +15,14 @@ interface TopBarProps {
   onOpenHistory: () => void;
   onOpenSettings: () => void;
   onNewGameClick: () => void;
+  onOpenRoom: () => void;
 }
 
 export const TopBar: React.FC<TopBarProps> = ({
   matchStartTime,
   turnCount,
+  roomCode,
+  realtimeStatus,
   canUndo,
   canRedo,
   onUndo,
@@ -26,6 +31,7 @@ export const TopBar: React.FC<TopBarProps> = ({
   onOpenHistory,
   onOpenSettings,
   onNewGameClick,
+  onOpenRoom,
 }) => {
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
   const isSupabaseReady = isSupabaseConfigured();
@@ -48,20 +54,35 @@ export const TopBar: React.FC<TopBarProps> = ({
   };
 
   return (
-    <header className="sticky top-0 z-30 bg-[#FAF8F5]/95 backdrop-blur-md border-b border-stone-200/80 px-3 py-2 sm:px-4 sm:py-2.5 transition-all shadow-sm">
-      <div className="max-w-xl mx-auto flex items-center justify-between gap-2">
-        {/* Left: Branding & Timer/Status */}
-        <div className="flex items-center gap-2.5">
+    <header className="sticky top-0 z-30 bg-[#FAF8F5]/95 backdrop-blur-md border-b border-stone-200/80 px-2.5 py-2 sm:px-4 sm:py-2.5 transition-all shadow-sm">
+      <div className="max-w-xl mx-auto flex items-center justify-between gap-1.5 sm:gap-2">
+        {/* Left: Branding & Timer & Room Code */}
+        <div className="flex items-center gap-1.5 sm:gap-2">
           <button
             onClick={onNewGameClick}
             title="Start New Match"
-            className="flex items-center gap-1.5 px-2 py-1 rounded-lg bg-stone-100 hover:bg-stone-200 text-stone-800 text-xs font-bold transition border border-stone-200"
+            className="flex items-center gap-1 px-2 py-1 rounded-lg bg-stone-100 hover:bg-stone-200 text-stone-800 text-xs font-bold transition border border-stone-200"
           >
-            <span className="text-base leading-none">🎱</span>
+            <span className="text-sm sm:text-base leading-none">🎱</span>
             <span className="font-extrabold tracking-tight hidden xs:inline">SNOOK</span>
           </button>
 
-          <div className="flex items-center gap-1.5 px-2 py-1 rounded-md bg-stone-900 text-stone-100 text-xs font-mono font-semibold shadow-inner">
+          {/* Room Live Sync Badge */}
+          <button
+            onClick={onOpenRoom}
+            title="Share Room link with other phones"
+            className={`flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-mono font-bold transition border shadow-sm ${
+              realtimeStatus === 'SUBSCRIBED'
+                ? 'bg-emerald-50 text-emerald-800 border-emerald-300 hover:bg-emerald-100'
+                : 'bg-amber-50 text-amber-800 border-amber-300 hover:bg-amber-100'
+            }`}
+          >
+            <Radio className={`w-3 h-3 ${realtimeStatus === 'SUBSCRIBED' ? 'text-emerald-600 animate-pulse' : 'text-amber-600'}`} />
+            <span>{roomCode}</span>
+          </button>
+
+          {/* Timer */}
+          <div className="flex items-center gap-1 px-2 py-1 rounded-md bg-stone-900 text-stone-100 text-xs font-mono font-semibold shadow-inner">
             <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
             <span>{formatTime(elapsedSeconds)}</span>
           </div>
@@ -71,14 +92,14 @@ export const TopBar: React.FC<TopBarProps> = ({
           </span>
         </div>
 
-        {/* Right: Actions (Undo, Redo, History, Settings, End Game) */}
-        <div className="flex items-center gap-1.5">
+        {/* Right: Actions */}
+        <div className="flex items-center gap-1 sm:gap-1.5">
           {/* Undo Button */}
           <button
             onClick={onUndo}
             disabled={!canUndo}
             title="Undo Last Action"
-            className={`p-2 rounded-xl flex items-center justify-center transition-all ${
+            className={`p-1.5 sm:p-2 rounded-xl flex items-center justify-center transition-all ${
               canUndo
                 ? 'bg-amber-100 text-amber-900 hover:bg-amber-200 active:scale-95 shadow-sm border border-amber-300/60 font-semibold'
                 : 'bg-stone-100 text-stone-300 cursor-not-allowed border border-transparent'
@@ -88,12 +109,12 @@ export const TopBar: React.FC<TopBarProps> = ({
             <RotateCcw className="w-4 h-4" />
           </button>
 
-          {/* Redo Button (shown if canRedo) */}
+          {/* Redo Button */}
           {canRedo && (
             <button
               onClick={onRedo}
               title="Redo Action"
-              className="p-2 rounded-xl flex items-center justify-center bg-amber-50 text-amber-800 hover:bg-amber-100 active:scale-95 transition-all border border-amber-200 shadow-sm"
+              className="p-1.5 sm:p-2 rounded-xl flex items-center justify-center bg-amber-50 text-amber-800 hover:bg-amber-100 active:scale-95 transition-all border border-amber-200 shadow-sm"
               aria-label="Redo"
             >
               <RotateCw className="w-4 h-4" />
@@ -104,17 +125,17 @@ export const TopBar: React.FC<TopBarProps> = ({
           <button
             onClick={onOpenHistory}
             title="Match History"
-            className="p-2 rounded-xl bg-stone-100 hover:bg-stone-200 active:scale-95 text-stone-700 transition border border-stone-200 shadow-sm"
+            className="p-1.5 sm:p-2 rounded-xl bg-stone-100 hover:bg-stone-200 active:scale-95 text-stone-700 transition border border-stone-200 shadow-sm"
             aria-label="Past Matches"
           >
             <History className="w-4 h-4" />
           </button>
 
-          {/* Config / Supabase Status */}
+          {/* Settings Button */}
           <button
             onClick={onOpenSettings}
             title={isSupabaseReady ? 'Supabase Connected' : 'Setup Supabase Cloud Sync'}
-            className={`p-2 rounded-xl transition active:scale-95 border shadow-sm ${
+            className={`p-1.5 sm:p-2 rounded-xl transition active:scale-95 border shadow-sm ${
               isSupabaseReady
                 ? 'bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100'
                 : 'bg-stone-100 text-stone-600 border-stone-200 hover:bg-stone-200'
@@ -131,10 +152,10 @@ export const TopBar: React.FC<TopBarProps> = ({
           {/* End Game Button */}
           <button
             onClick={onEndGameClick}
-            className="flex items-center gap-1 px-3 py-1.5 rounded-xl bg-rose-600 hover:bg-rose-700 active:scale-95 text-white text-xs font-bold transition shadow-sm border border-rose-700"
+            className="flex items-center gap-1 px-2.5 sm:px-3 py-1.5 rounded-xl bg-rose-600 hover:bg-rose-700 active:scale-95 text-white text-xs font-bold transition shadow-sm border border-rose-700"
           >
             <Flag className="w-3.5 h-3.5" />
-            <span>End Frame</span>
+            <span className="hidden xs:inline">End Frame</span>
           </button>
         </div>
       </div>

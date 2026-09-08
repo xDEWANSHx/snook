@@ -1,8 +1,17 @@
 -- ==============================================================================
--- SNOOKER SCOREBOARD DATABASE SCHEMA FOR SUPABASE
+-- SNOOKER SCOREBOARD DATABASE SCHEMA FOR SUPABASE (ONLINE-FIRST + REALTIME)
 -- ==============================================================================
 
--- 1. Matches Table
+-- 1. Live Matches Table (For Realtime Multi-Device Sync across phones)
+CREATE TABLE IF NOT EXISTS live_matches (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    room_code TEXT UNIQUE NOT NULL,
+    state JSONB NOT NULL,
+    created_at TIMESTAMPTZ DEFAULT now() NOT NULL,
+    updated_at TIMESTAMPTZ DEFAULT now() NOT NULL
+);
+
+-- 2. Matches Table (Archived / Finalized Frames)
 CREATE TABLE IF NOT EXISTS matches (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     created_at TIMESTAMPTZ DEFAULT now() NOT NULL,
@@ -11,7 +20,7 @@ CREATE TABLE IF NOT EXISTS matches (
     duration_seconds INT DEFAULT 0
 );
 
--- 2. Match Players Table (Child table with CASCADE delete)
+-- 3. Match Players Table (Child table with CASCADE delete)
 CREATE TABLE IF NOT EXISTS match_players (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     match_id UUID NOT NULL REFERENCES matches(id) ON DELETE CASCADE,
@@ -20,43 +29,40 @@ CREATE TABLE IF NOT EXISTS match_players (
     rank INT NOT NULL
 );
 
--- 3. Indexes for fast retrieval
+-- 4. Indexes for fast retrieval
+CREATE INDEX IF NOT EXISTS idx_live_matches_room_code ON live_matches(room_code);
 CREATE INDEX IF NOT EXISTS idx_matches_created_at ON matches(created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_match_players_match_id ON match_players(match_id);
 
--- 4. Enable Row Level Security (RLS)
+-- 5. Enable Row Level Security (RLS)
+ALTER TABLE live_matches ENABLE ROW LEVEL SECURITY;
 ALTER TABLE matches ENABLE ROW LEVEL SECURITY;
 ALTER TABLE match_players ENABLE ROW LEVEL SECURITY;
 
--- 5. Open Public Access Policies (Safe for client scoreboard logging)
--- Allow anyone to read matches and match_players
+-- 6. Open Public Access Policies (Safe for public scoreboard rooms)
+CREATE POLICY "Allow public all live_matches" 
+    ON live_matches FOR ALL 
+    USING (true) WITH CHECK (true);
+
 CREATE POLICY "Allow public read matches" 
     ON matches FOR SELECT 
     USING (true);
+
+CREATE POLICY "Allow public insert matches" 
+    ON matches FOR INSERT 
+    WITH CHECK (true);
 
 CREATE POLICY "Allow public read match_players" 
     ON match_players FOR SELECT 
     USING (true);
 
--- Allow anyone to insert matches and match_players
-CREATE POLICY "Allow public insert matches" 
-    ON matches FOR INSERT 
-    WITH CHECK (true);
-
 CREATE POLICY "Allow public insert match_players" 
     ON match_players FOR INSERT 
     WITH CHECK (true);
 
--- Allow deleting match records (cascades to match_players)
 CREATE POLICY "Allow public delete matches" 
     ON matches FOR DELETE 
     USING (true);
 
--- ==============================================================================
--- Sample verification query:
--- SELECT m.*, json_agg(mp.*) as players
--- FROM matches m
--- LEFT JOIN match_players mp ON m.id = mp.match_id
--- GROUP BY m.id
--- ORDER BY m.created_at DESC;
--- ==============================================================================
+-- 7. Enable Supabase Realtime for live_matches
+ALTER PUBLICATION supabase_realtime ADD TABLE live_matches;

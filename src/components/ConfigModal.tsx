@@ -8,7 +8,16 @@ interface ConfigModalProps {
   onConfigSaved: () => void;
 }
 
-const SQL_SCHEMA_SNIPPET = `-- 1. Matches Table
+const SQL_SCHEMA_SNIPPET = `-- 1. Live Matches (Realtime Multi-Phone Sync)
+CREATE TABLE IF NOT EXISTS live_matches (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    room_code TEXT UNIQUE NOT NULL,
+    state JSONB NOT NULL,
+    created_at TIMESTAMPTZ DEFAULT now() NOT NULL,
+    updated_at TIMESTAMPTZ DEFAULT now() NOT NULL
+);
+
+-- 2. Matches Table (Archived)
 CREATE TABLE IF NOT EXISTS matches (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     created_at TIMESTAMPTZ DEFAULT now() NOT NULL,
@@ -17,7 +26,7 @@ CREATE TABLE IF NOT EXISTS matches (
     duration_seconds INT DEFAULT 0
 );
 
--- 2. Match Players Table
+-- 3. Match Players Table
 CREATE TABLE IF NOT EXISTS match_players (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     match_id UUID NOT NULL REFERENCES matches(id) ON DELETE CASCADE,
@@ -26,15 +35,19 @@ CREATE TABLE IF NOT EXISTS match_players (
     rank INT NOT NULL
 );
 
--- 3. Row Level Security & Public Policies
+-- 4. RLS & Realtime
+ALTER TABLE live_matches ENABLE ROW LEVEL SECURITY;
 ALTER TABLE matches ENABLE ROW LEVEL SECURITY;
 ALTER TABLE match_players ENABLE ROW LEVEL SECURITY;
 
+CREATE POLICY "Allow public all live_matches" ON live_matches FOR ALL USING (true) WITH CHECK (true);
 CREATE POLICY "Allow public read matches" ON matches FOR SELECT USING (true);
 CREATE POLICY "Allow public insert matches" ON matches FOR INSERT WITH CHECK (true);
 CREATE POLICY "Allow public read match_players" ON match_players FOR SELECT USING (true);
 CREATE POLICY "Allow public insert match_players" ON match_players FOR INSERT WITH CHECK (true);
-CREATE POLICY "Allow public delete matches" ON matches FOR DELETE USING (true);`;
+CREATE POLICY "Allow public delete matches" ON matches FOR DELETE USING (true);
+
+ALTER PUBLICATION supabase_realtime ADD TABLE live_matches;`;
 
 export const ConfigModal: React.FC<ConfigModalProps> = ({ isOpen, onClose, onConfigSaved }) => {
   const currentCreds = getSupabaseCredentials();
