@@ -9,7 +9,6 @@ import { HistoryDrawer } from './components/HistoryDrawer';
 import { ConfigModal } from './components/ConfigModal';
 import { RoomModal } from './components/RoomModal';
 import { ConfirmActionModal } from './components/ConfirmActionModal';
-import { TableWatermark } from './components/TableWatermark';
 
 export const App: React.FC = () => {
   const {
@@ -102,13 +101,10 @@ export const App: React.FC = () => {
 
   return (
     <div
-      className={`min-h-screen flex flex-col justify-start transition-colors duration-300 selection:bg-emerald-300 relative overflow-x-hidden ${
+      className={`min-h-screen flex flex-col justify-start transition-colors duration-300 selection:bg-emerald-300 relative ${
         theme === 'felt' ? 'theme-felt' : 'theme-chalk'
       }`}
     >
-      {/* Authentic Snooker Table Blueprint & Overhead Canopy Spotlight Watermark */}
-      <TableWatermark theme={theme} />
-
       {/* 1. Sticky Top Bar: Match timer, turn counter, room live badge, undo, redo, theme toggle, settings, end game */}
       <TopBar
         matchStartTime={state.matchStartTime}
@@ -134,6 +130,7 @@ export const App: React.FC = () => {
         <PlayerCardsGrid
           players={state.players}
           activePlayerIndex={state.activePlayerIndex}
+          theme={theme}
           onSelectPlayer={() => {
             // Direct player selection allowed
           }}
@@ -141,12 +138,16 @@ export const App: React.FC = () => {
 
         {/* 3. Bottom Thumb Zone: Snooker Balls, Foul Section, and Giant "Turn Over" Button */}
         <BallControls
+          theme={theme}
           onAddPoints={addPoints}
           onApplyFoul={applyFoul}
           onNextPlayer={nextPlayer}
           nextPlayerName={nextPlayerName}
           doubleTapMode={state.doubleTapMode}
           onToggleDoubleTap={toggleDoubleTapMode}
+          redsRemaining={state.redsRemaining}
+          nextBallType={state.nextBallType}
+          colorSequenceIndex={state.colorSequenceIndex}
         />
       </main>
 

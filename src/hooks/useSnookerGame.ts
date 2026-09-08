@@ -17,6 +17,9 @@ const DEFAULT_INITIAL_STATE: GameState = {
   matchStartTime: Date.now(),
   isGameOver: false,
   doubleTapMode: true,
+  redsRemaining: 15,
+  nextBallType: 'RED',
+  colorSequenceIndex: 0,
 };
 
 // Generate random friendly room code (e.g., TABLE-42 or SNOOK-88)
@@ -78,6 +81,9 @@ export function useSnookerGame() {
       matchStartTime: s.matchStartTime,
       isGameOver: s.isGameOver,
       doubleTapMode: s.doubleTapMode,
+      redsRemaining: s.redsRemaining !== undefined ? s.redsRemaining : 15,
+      nextBallType: s.nextBallType || 'RED',
+      colorSequenceIndex: s.colorSequenceIndex !== undefined ? s.colorSequenceIndex : 0,
     };
   }, []);
 
@@ -87,7 +93,13 @@ export function useSnookerGame() {
 
     getOrCreateLiveMatch(roomCode, DEFAULT_INITIAL_STATE).then(res => {
       if (!isCancelled && res.state) {
-        setState(res.state);
+        setState({
+          ...DEFAULT_INITIAL_STATE,
+          ...res.state,
+          redsRemaining: res.state.redsRemaining !== undefined ? res.state.redsRemaining : 15,
+          nextBallType: res.state.nextBallType || 'RED',
+          colorSequenceIndex: res.state.colorSequenceIndex !== undefined ? res.state.colorSequenceIndex : 0,
+        });
       }
     });
 
@@ -95,7 +107,6 @@ export function useSnookerGame() {
     const { broadcastState, unsubscribe } = subscribeToRoom(
       roomCode,
       (remoteState) => {
-        // Received remote update from another player's phone!
         isRemoteUpdateRef.current = true;
         setState(remoteState);
         playTurnSwitchSound();
@@ -151,7 +162,7 @@ export function useSnookerGame() {
   );
 
   /**
-   * Commit positive ball points to the active player
+   * Commit positive ball points to the active player with 15-red and color sequence progression
    */
   const addPoints = useCallback(
     (points: number, ballName: string) => {
@@ -169,9 +180,40 @@ export function useSnookerGame() {
         return p;
       });
 
-      const next = {
+      let nextReds = state.redsRemaining !== undefined ? state.redsRemaining : 15;
+      let nextType = state.nextBallType || 'RED';
+      let nextSeqIndex = state.colorSequenceIndex || 0;
+
+      if (ballName === 'Red') {
+        // Red potted! Decrement overall reds count
+        nextReds = Math.max(0, nextReds - 1);
+        // Player now gets a shot at any color
+        nextType = 'COLOR';
+      } else {
+        // A Color ball was potted (+2 to +7)
+        if (nextReds > 0) {
+          // If reds remain on the table, next ball is back to RED
+          nextType = 'RED';
+        } else {
+          // All 15 reds have been potted!
+          if (nextType === 'COLOR') {
+            // This was the color after the 15th red!
+            // Now start the official Colors Sequence (Yellow -> Green -> Brown -> Blue -> Pink -> Black)
+            nextType = 'COLOR_SEQUENCE';
+            nextSeqIndex = 0; // Yellow
+          } else if (nextType === 'COLOR_SEQUENCE') {
+            // Advance sequence
+            nextSeqIndex = nextSeqIndex + 1;
+          }
+        }
+      }
+
+      const next: GameState = {
         ...state,
         players: updatedPlayers,
+        redsRemaining: nextReds,
+        nextBallType: nextType,
+        colorSequenceIndex: nextSeqIndex,
       };
 
       dispatchStateChange(next);
@@ -183,8 +225,8 @@ export function useSnookerGame() {
    * Apply foul points (directly deducts negative value or registers miss 0)
    */
   const applyFoul = useCallback(
-    (foulPoints: number) => {
-      const desc = foulPoints === 0 ? 'Miss (0)' : `Foul (${foulPoints})`;
+    (foulPoints: number, reason?: string) => {
+      const desc = reason || (foulPoints === 0 ? 'Miss (0)' : `Foul (${foulPoints})`);
       recordAction(desc);
       playFoulSound();
 
@@ -199,9 +241,24 @@ export function useSnookerGame() {
         return p;
       });
 
-      const next = {
+      let nextType = state.nextBallType || 'RED';
+      let nextSeqIndex = state.colorSequenceIndex || 0;
+      const reds = state.redsRemaining !== undefined ? state.redsRemaining : 15;
+
+      if (reds > 0) {
+        nextType = 'RED';
+      } else {
+        nextType = 'COLOR_SEQUENCE';
+        if (state.nextBallType === 'COLOR') {
+          nextSeqIndex = 0; // Miss/foul on bonus color -> start colors sequence at Yellow
+        }
+      }
+
+      const next: GameState = {
         ...state,
         players: updatedPlayers,
+        nextBallType: nextType,
+        colorSequenceIndex: nextSeqIndex,
       };
 
       dispatchStateChange(next);
@@ -228,11 +285,26 @@ export function useSnookerGame() {
       return p;
     });
 
-    const next = {
+    let nextType = state.nextBallType || 'RED';
+    let nextSeqIndex = state.colorSequenceIndex || 0;
+    const reds = state.redsRemaining !== undefined ? state.redsRemaining : 15;
+
+    if (reds > 0) {
+      nextType = 'RED';
+    } else {
+      nextType = 'COLOR_SEQUENCE';
+      if (state.nextBallType === 'COLOR') {
+        nextSeqIndex = 0; // Turn over on bonus color -> start colors sequence at Yellow
+      }
+    }
+
+    const next: GameState = {
       ...state,
       players: updatedPlayers,
       activePlayerIndex: nextIndex,
       turnCount: state.turnCount + 1,
+      nextBallType: nextType,
+      colorSequenceIndex: nextSeqIndex,
     };
 
     dispatchStateChange(next);
@@ -287,7 +359,8 @@ export function useSnookerGame() {
    */
   const startNewGame = useCallback(
     (playerNames: string[]) => {
-      const names = playerNames.length >= 2 ? playerNames : ['Player 1', 'Player 2'];
+      const validNames = playerNames.slice(0, 6);
+      const names = validNames.length >= 2 ? validNames : ['Player 1', 'Player 2'];
       const newPlayers: Player[] = names.map((name, index) => ({
         id: `player_${Date.now()}_${index}`,
         name: name.trim() || `Player ${index + 1}`,
@@ -302,6 +375,9 @@ export function useSnookerGame() {
         matchStartTime: Date.now(),
         isGameOver: false,
         doubleTapMode: state.doubleTapMode,
+        redsRemaining: 15,
+        nextBallType: 'RED',
+        colorSequenceIndex: 0,
       };
 
       setUndoStack([]);

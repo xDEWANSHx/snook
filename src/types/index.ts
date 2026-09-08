@@ -5,13 +5,18 @@ export interface Player {
   currentBreak: number;
 }
 
+export type NextBallType = 'RED' | 'COLOR' | 'COLOR_SEQUENCE';
+
 export interface GameState {
   players: Player[];
   activePlayerIndex: number;
   turnCount: number;
   matchStartTime: number; // Unix timestamp
   isGameOver: boolean;
-  doubleTapMode: boolean; // default: true (per user prompt)
+  doubleTapMode: boolean; // default: true
+  redsRemaining: number; // starts at 15
+  nextBallType: NextBallType; // 'RED' | 'COLOR' | 'COLOR_SEQUENCE'
+  colorSequenceIndex: number; // 0=Yellow, 1=Green, 2=Brown, 3=Blue, 4=Pink, 5=Black
 }
 
 export interface ActionHistoryEntry {
