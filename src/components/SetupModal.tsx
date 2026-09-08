@@ -26,30 +26,71 @@ export const SetupModal: React.FC<SetupModalProps> = ({
   isMandatory = false,
 }) => {
   const [playerCount, setPlayerCount] = useState<number>(() => {
-    const len = initialPlayerNames.length;
-    return len >= 2 && len <= 6 ? len : 2;
+    let savedNames: string[] | null = null;
+    try {
+      const stored = localStorage.getItem('snooker_saved_player_names');
+      if (stored) savedNames = JSON.parse(stored);
+    } catch {}
+
+    const source =
+      initialPlayerNames && initialPlayerNames.length >= 2
+        ? initialPlayerNames
+        : savedNames && savedNames.length >= 2
+        ? savedNames
+        : ['Player 1', 'Player 2'];
+
+    return Math.min(6, Math.max(2, source.length));
   });
 
   const [names, setNames] = useState<string[]>(() => {
+    let savedNames: string[] | null = null;
+    try {
+      const stored = localStorage.getItem('snooker_saved_player_names');
+      if (stored) savedNames = JSON.parse(stored);
+    } catch {}
+
+    const source =
+      initialPlayerNames && initialPlayerNames.length >= 2
+        ? initialPlayerNames
+        : savedNames && savedNames.length >= 2
+        ? savedNames
+        : ['Player 1', 'Player 2'];
+
     const arr = [...DEFAULT_PRESET_NAMES];
-    initialPlayerNames.forEach((n, i) => {
-      if (i < 6) arr[i] = n;
+    source.forEach((n, i) => {
+      if (i < 6 && n) arr[i] = n;
     });
     return arr;
   });
 
+  // Only re-sync when modal opens (flips from closed to open)
+  // This prevents background timers / parent re-renders from wiping user's inputs while typing
   useEffect(() => {
-    if (initialPlayerNames && initialPlayerNames.length >= 2) {
-      setPlayerCount(Math.min(6, Math.max(2, initialPlayerNames.length)));
-      setNames(prev => {
-        const next = [...prev];
-        initialPlayerNames.forEach((n, i) => {
-          if (i < 6) next[i] = n;
+    if (isOpen) {
+      let savedNames: string[] | null = null;
+      try {
+        const stored = localStorage.getItem('snooker_saved_player_names');
+        if (stored) savedNames = JSON.parse(stored);
+      } catch {}
+
+      const source =
+        initialPlayerNames && initialPlayerNames.length >= 2
+          ? initialPlayerNames
+          : savedNames && savedNames.length >= 2
+          ? savedNames
+          : ['Player 1', 'Player 2'];
+
+      const count = Math.min(6, Math.max(2, source.length));
+      setPlayerCount(count);
+      setNames(() => {
+        const arr = [...DEFAULT_PRESET_NAMES];
+        source.forEach((n, i) => {
+          if (i < 6 && n) arr[i] = n;
         });
-        return next;
+        return arr;
       });
     }
-  }, [initialPlayerNames]);
+  }, [isOpen]);
 
   if (!isOpen) return null;
 
@@ -66,6 +107,9 @@ export const SetupModal: React.FC<SetupModalProps> = ({
   const handleStart = (e: React.FormEvent) => {
     e.preventDefault();
     const finalNames = names.slice(0, playerCount).map((n, i) => n.trim() || `Player ${i + 1}`);
+    try {
+      localStorage.setItem('snooker_saved_player_names', JSON.stringify(finalNames));
+    } catch {}
     onStartGame(finalNames);
   };
 

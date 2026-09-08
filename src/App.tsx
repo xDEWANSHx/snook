@@ -21,6 +21,7 @@ export const App: React.FC = () => {
     addPoints,
     applyFoul,
     nextPlayer,
+    setActivePlayer,
     undo,
     redo,
     lastUndoDescription,
@@ -131,9 +132,7 @@ export const App: React.FC = () => {
           players={state.players}
           activePlayerIndex={state.activePlayerIndex}
           theme={theme}
-          onSelectPlayer={() => {
-            // Direct player selection allowed
-          }}
+          onSelectPlayer={setActivePlayer}
         />
 
         {/* 3. Bottom Thumb Zone: Snooker Balls, Foul Section, and Giant "Turn Over" Button */}

@@ -39,16 +39,44 @@ function getInitialRoomCode(): string {
   return generateRandomTableCode();
 }
 
+function getInitialGameState(room: string): GameState {
+  if (typeof window !== 'undefined') {
+    try {
+      const cached = localStorage.getItem(`snooker_room_${room}`);
+      if (cached) {
+        const parsed = JSON.parse(cached);
+        if (parsed && Array.isArray(parsed.players) && parsed.players.length >= 2) {
+          return {
+            ...DEFAULT_INITIAL_STATE,
+            ...parsed,
+            redsRemaining: parsed.redsRemaining !== undefined ? parsed.redsRemaining : 15,
+            nextBallType: parsed.nextBallType || 'RED',
+            colorSequenceIndex: parsed.colorSequenceIndex !== undefined ? parsed.colorSequenceIndex : 0,
+          };
+        }
+      }
+    } catch {}
+  }
+  return DEFAULT_INITIAL_STATE;
+}
+
 export function useSnookerGame() {
-  const [roomCode, setRoomCodeState] = useState<string>(getInitialRoomCode);
+  const initialRoom = getInitialRoomCode();
+  const [roomCode, setRoomCodeState] = useState<string>(initialRoom);
   const [realtimeStatus, setRealtimeStatus] = useState<'SUBSCRIBED' | 'CONNECTING' | 'DISCONNECTED'>('CONNECTING');
-  const [state, setState] = useState<GameState>(DEFAULT_INITIAL_STATE);
+  const [state, setState] = useState<GameState>(() => getInitialGameState(initialRoom));
   const stateRef = useRef(state);
   useEffect(() => {
     stateRef.current = state;
   }, [state]);
 
+  const roomCodeRef = useRef(roomCode);
+  useEffect(() => {
+    roomCodeRef.current = roomCode;
+  }, [roomCode]);
+
   const lastLocalActionTimeRef = useRef<number>(0);
+  const pendingInitialStateRef = useRef<{ roomCode: string; state: GameState } | null>(null);
 
   const [undoStack, setUndoStack] = useState<ActionHistoryEntry[]>(() => {
     if (typeof window !== 'undefined') {
@@ -91,6 +119,7 @@ export function useSnookerGame() {
   // Sync room code to URL query params and localStorage
   const setRoomCode = useCallback((newRoom: string) => {
     const clean = newRoom.toUpperCase().trim() || generateRandomTableCode();
+    roomCodeRef.current = clean;
     setRoomCodeState(clean);
     if (typeof window !== 'undefined') {
       localStorage.setItem('snooker_active_room', clean);
@@ -131,10 +160,34 @@ export function useSnookerGame() {
   useEffect(() => {
     let isCancelled = false;
 
-    getOrCreateLiveMatch(roomCode, DEFAULT_INITIAL_STATE).then(res => {
+    // Check if we have a pending initial state (e.g. from startNewGame with custom players)
+    let initialToUse = DEFAULT_INITIAL_STATE;
+    const pending = pendingInitialStateRef.current;
+    if (pending && pending.roomCode === roomCode) {
+      initialToUse = pending.state;
+      pendingInitialStateRef.current = null;
+    } else if (typeof window !== 'undefined') {
+      const cached = localStorage.getItem(`snooker_room_${roomCode}`);
+      if (cached) {
+        try {
+          const parsed = JSON.parse(cached);
+          if (parsed && Array.isArray(parsed.players) && parsed.players.length >= 2) {
+            initialToUse = {
+              ...DEFAULT_INITIAL_STATE,
+              ...parsed,
+              redsRemaining: parsed.redsRemaining !== undefined ? parsed.redsRemaining : 15,
+              nextBallType: parsed.nextBallType || 'RED',
+              colorSequenceIndex: parsed.colorSequenceIndex !== undefined ? parsed.colorSequenceIndex : 0,
+            };
+          }
+        } catch {}
+      }
+    }
+
+    getOrCreateLiveMatch(roomCode, initialToUse).then(res => {
       if (!isCancelled && res.state) {
         setState({
-          ...DEFAULT_INITIAL_STATE,
+          ...initialToUse,
           ...res.state,
           redsRemaining: res.state.redsRemaining !== undefined ? res.state.redsRemaining : 15,
           nextBallType: res.state.nextBallType || 'RED',
@@ -183,11 +236,12 @@ export function useSnookerGame() {
       if (debouncePersistTimer.current) {
         clearTimeout(debouncePersistTimer.current);
       }
+      const targetRoom = roomCodeRef.current;
       debouncePersistTimer.current = setTimeout(() => {
-        persistLiveMatchState(roomCode, newState);
+        persistLiveMatchState(targetRoom, newState);
       }, 150);
     },
-    [roomCode]
+    []
   );
 
   // Save snapshot to undo stack
@@ -403,6 +457,41 @@ export function useSnookerGame() {
   }, [redoStack, cloneState, dispatchStateChange]);
 
   /**
+   * Switch turn to a specific player index (e.g. by tapping player card)
+   */
+  const setActivePlayer = useCallback(
+    (playerIndex: number) => {
+      if (playerIndex < 0 || playerIndex >= state.players.length) return;
+      if (playerIndex === state.activePlayerIndex) return;
+
+      const targetPlayer = state.players[playerIndex];
+      recordAction(`Turn switched to ${targetPlayer?.name || `Player ${playerIndex + 1}`}`);
+      playTurnSwitchSound();
+
+      const updatedPlayers = state.players.map((p, idx) => {
+        if (idx === state.activePlayerIndex) {
+          return { ...p, currentBreak: 0 };
+        }
+        return p;
+      });
+
+      const reds = state.redsRemaining !== undefined ? state.redsRemaining : 15;
+      const nextType = reds > 0 ? 'RED' : 'COLOR_SEQUENCE';
+
+      const next: GameState = {
+        ...state,
+        players: updatedPlayers,
+        activePlayerIndex: playerIndex,
+        turnCount: state.turnCount + 1,
+        nextBallType: nextType,
+      };
+
+      dispatchStateChange(next);
+    },
+    [state, recordAction, dispatchStateChange]
+  );
+
+  /**
    * Initialize a new match session with custom player names and fresh 3-digit table number
    */
   const startNewGame = useCallback(
@@ -422,7 +511,7 @@ export function useSnookerGame() {
         turnCount: 1,
         matchStartTime: Date.now(),
         isGameOver: false,
-        doubleTapMode: state.doubleTapMode,
+        doubleTapMode: stateRef.current.doubleTapMode,
         redsRemaining: 15,
         nextBallType: 'RED',
         colorSequenceIndex: 0,
@@ -430,13 +519,32 @@ export function useSnookerGame() {
 
       // Regenerate fresh random 3-digit table number for new match
       const newTableCode = generateRandomTableCode();
-      setRoomCode(newTableCode);
 
+      lastLocalActionTimeRef.current = Date.now();
+      pendingInitialStateRef.current = {
+        roomCode: newTableCode,
+        state: newState,
+      };
+
+      // Reset undo and redo for the new table
       setUndoStack([]);
       setRedoStack([]);
-      dispatchStateChange(newState);
+      if (typeof window !== 'undefined') {
+        sessionStorage.removeItem(`snooker_undo_${newTableCode}`);
+        sessionStorage.removeItem(`snooker_redo_${newTableCode}`);
+        localStorage.setItem(`snooker_room_${newTableCode}`, JSON.stringify(newState));
+      }
+
+      // Persist immediately to Supabase live_matches table
+      persistLiveMatchState(newTableCode, newState);
+
+      // Update roomCode, state and refs
+      roomCodeRef.current = newTableCode;
+      setRoomCode(newTableCode);
+      setState(newState);
+      stateRef.current = newState;
     },
-    [state.doubleTapMode, setRoomCode, dispatchStateChange]
+    [setRoomCode]
   );
 
   /**
@@ -476,6 +584,7 @@ export function useSnookerGame() {
     addPoints,
     applyFoul,
     nextPlayer,
+    setActivePlayer,
     undo,
     redo,
     lastUndoDescription: undoStack[undoStack.length - 1]?.actionDescription || '',
