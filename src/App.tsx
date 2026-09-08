@@ -9,6 +9,7 @@ import { HistoryDrawer } from './components/HistoryDrawer';
 import { ConfigModal } from './components/ConfigModal';
 import { RoomModal } from './components/RoomModal';
 import { ConfirmActionModal } from './components/ConfirmActionModal';
+import { TableWatermark } from './components/TableWatermark';
 
 export const App: React.FC = () => {
   const {
@@ -101,10 +102,13 @@ export const App: React.FC = () => {
 
   return (
     <div
-      className={`min-h-screen flex flex-col justify-start transition-colors duration-300 selection:bg-emerald-300 ${
+      className={`min-h-screen flex flex-col justify-start transition-colors duration-300 selection:bg-emerald-300 relative overflow-x-hidden ${
         theme === 'felt' ? 'theme-felt' : 'theme-chalk'
       }`}
     >
+      {/* Authentic Snooker Table Blueprint & Overhead Canopy Spotlight Watermark */}
+      <TableWatermark theme={theme} />
+
       {/* 1. Sticky Top Bar: Match timer, turn counter, room live badge, undo, redo, theme toggle, settings, end game */}
       <TopBar
         matchStartTime={state.matchStartTime}
@@ -125,7 +129,7 @@ export const App: React.FC = () => {
       />
 
       {/* Main Content Area: Uniform spacing throughout with zero dead gaps */}
-      <main className="flex-1 max-w-xl mx-auto w-full px-3 py-2.5 sm:px-4 flex flex-col gap-2.5 sm:gap-3 justify-start">
+      <main className="flex-1 max-w-xl mx-auto w-full px-3 py-2.5 sm:px-4 flex flex-col gap-2.5 sm:gap-3 justify-start relative z-10">
         {/* 2. Player Cards Grid (2 to 6 Players supported with glowing active border) */}
         <PlayerCardsGrid
           players={state.players}
