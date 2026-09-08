@@ -24,8 +24,10 @@ export const BallControls: React.FC<BallControlsProps> = ({
   const [pendingBall, setPendingBall] = useState<number | null>(null);
   const [pendingFoul, setPendingFoul] = useState<number | null>(null);
   const [committedBallAnim, setCommittedBallAnim] = useState<number | null>(null);
+  
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const foulTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const isLockRef = useRef<boolean>(false);
 
   // Clear timers on unmount
   useEffect(() => {
@@ -35,23 +37,39 @@ export const BallControls: React.FC<BallControlsProps> = ({
     };
   }, []);
 
+  const triggerCommitAnim = (points: number) => {
+    setCommittedBallAnim(points);
+    setTimeout(() => setCommittedBallAnim(null), 300);
+  };
+
   const handleBallPress = (ball: Ball) => {
+    // Prevent accidental multi-clicks or race conditions
+    if (isLockRef.current) return;
+
     if (!doubleTapMode) {
-      // Single-tap mode: Commit immediately
+      // Single-tap mode: Commit immediately once with lock
+      isLockRef.current = true;
       triggerCommitAnim(ball.points);
       onAddPoints(ball.points, ball.name);
+      setTimeout(() => {
+        isLockRef.current = false;
+      }, 250);
       return;
     }
 
     // Double-tap mode
     if (pendingBall === ball.points) {
-      // Second tap within window! Commit points!
+      // Second tap! Commit points EXACTLY ONCE and lock briefly
+      isLockRef.current = true;
       if (timerRef.current) clearTimeout(timerRef.current);
       setPendingBall(null);
       triggerCommitAnim(ball.points);
       onAddPoints(ball.points, ball.name);
+      setTimeout(() => {
+        isLockRef.current = false;
+      }, 300);
     } else {
-      // First tap: set pending and start 800ms window
+      // First tap: set pending and start 850ms confirmation window
       if (timerRef.current) clearTimeout(timerRef.current);
       setPendingBall(ball.points);
       timerRef.current = setTimeout(() => {
@@ -61,15 +79,25 @@ export const BallControls: React.FC<BallControlsProps> = ({
   };
 
   const handleFoulPress = (points: number) => {
+    if (isLockRef.current) return;
+
     if (!doubleTapMode) {
+      isLockRef.current = true;
       onApplyFoul(points);
+      setTimeout(() => {
+        isLockRef.current = false;
+      }, 250);
       return;
     }
 
     if (pendingFoul === points) {
+      isLockRef.current = true;
       if (foulTimerRef.current) clearTimeout(foulTimerRef.current);
       setPendingFoul(null);
       onApplyFoul(points);
+      setTimeout(() => {
+        isLockRef.current = false;
+      }, 300);
     } else {
       if (foulTimerRef.current) clearTimeout(foulTimerRef.current);
       setPendingFoul(points);
@@ -77,11 +105,6 @@ export const BallControls: React.FC<BallControlsProps> = ({
         setPendingFoul(null);
       }, 850);
     }
-  };
-
-  const triggerCommitAnim = (points: number) => {
-    setCommittedBallAnim(points);
-    setTimeout(() => setCommittedBallAnim(null), 300);
   };
 
   return (
@@ -122,15 +145,7 @@ export const BallControls: React.FC<BallControlsProps> = ({
                 key={ball.name}
                 type="button"
                 onClick={() => handleBallPress(ball)}
-                onDoubleClick={() => {
-                  // Desktop double-click safety fallback
-                  if (doubleTapMode) {
-                    triggerCommitAnim(ball.points);
-                    onAddPoints(ball.points, ball.name);
-                    setPendingBall(null);
-                  }
-                }}
-                className="flex flex-col items-center group relative focus:outline-none"
+                className="flex flex-col items-center group relative focus:outline-none touch-manipulation cursor-pointer"
               >
                 <div
                   className={`w-14 h-14 sm:w-16 sm:h-16 snooker-ball ${ball.colorClass} ${
@@ -162,14 +177,7 @@ export const BallControls: React.FC<BallControlsProps> = ({
                 key={ball.name}
                 type="button"
                 onClick={() => handleBallPress(ball)}
-                onDoubleClick={() => {
-                  if (doubleTapMode) {
-                    triggerCommitAnim(ball.points);
-                    onAddPoints(ball.points, ball.name);
-                    setPendingBall(null);
-                  }
-                }}
-                className="flex flex-col items-center group relative focus:outline-none"
+                className="flex flex-col items-center group relative focus:outline-none touch-manipulation cursor-pointer"
               >
                 <div
                   className={`w-14 h-14 sm:w-16 sm:h-16 snooker-ball ${ball.colorClass} ${
@@ -193,8 +201,8 @@ export const BallControls: React.FC<BallControlsProps> = ({
       </div>
 
       {/* 2. Distinct Foul Section (0, -2, -3, -4, -5, -6, -7) */}
-      <div className="bg-stone-900/95 text-stone-100 rounded-2xl p-2.5 sm:p-3 border border-stone-800 shadow-sm">
-        <div className="flex items-center justify-between mb-1.5 px-1">
+      <div className="bg-stone-900/95 text-stone-100 rounded-2xl p-2 sm:p-2.5 border border-stone-800 shadow-sm">
+        <div className="flex items-center justify-between mb-1 px-1">
           <div className="flex items-center gap-1.5 text-rose-400 font-extrabold text-[11px] uppercase tracking-wider">
             <AlertTriangle className="w-3.5 h-3.5" />
             <span>Fouls & Misses (Direct Deduction)</span>
@@ -206,7 +214,7 @@ export const BallControls: React.FC<BallControlsProps> = ({
           )}
         </div>
 
-        <div className="grid grid-cols-7 gap-1.5">
+        <div className="grid grid-cols-7 gap-1 sm:gap-1.5">
           {FOUL_OPTIONS.map((foul) => {
             const isPending = pendingFoul === foul.points;
             return (
@@ -214,7 +222,7 @@ export const BallControls: React.FC<BallControlsProps> = ({
                 key={foul.label}
                 type="button"
                 onClick={() => handleFoulPress(foul.points)}
-                className={`py-2 px-1 rounded-xl flex flex-col items-center justify-center font-mono font-bold transition-all ${
+                className={`py-2 px-1 rounded-xl flex flex-col items-center justify-center font-mono font-bold transition-all touch-manipulation cursor-pointer ${
                   isPending
                     ? 'bg-amber-500 text-stone-950 ring-2 ring-white scale-105 shadow-lg'
                     : foul.points === 0
@@ -237,11 +245,11 @@ export const BallControls: React.FC<BallControlsProps> = ({
       <button
         type="button"
         onClick={onNextPlayer}
-        className="w-full py-4 px-6 rounded-2xl bg-gradient-to-r from-emerald-700 via-emerald-800 to-teal-900 hover:from-emerald-600 hover:to-teal-800 active:scale-[0.98] text-white font-extrabold text-lg sm:text-xl shadow-lg border-2 border-emerald-500/40 flex items-center justify-center gap-3 transition-all duration-150 touch-manipulation cursor-pointer"
+        className="w-full py-3.5 px-6 rounded-2xl bg-gradient-to-r from-emerald-700 via-emerald-800 to-teal-900 hover:from-emerald-600 hover:to-teal-800 active:scale-[0.98] text-white font-black text-base sm:text-lg shadow-lg border-2 border-emerald-500/40 flex items-center justify-center gap-3 transition-all duration-150 touch-manipulation cursor-pointer"
       >
-        <UserCheck className="w-6 h-6 text-emerald-300" />
+        <UserCheck className="w-5 h-5 text-emerald-300" />
         <span>TURN OVER</span>
-        <span className="text-xs font-semibold px-2.5 py-1 rounded-lg bg-black/30 text-emerald-200 border border-emerald-400/30">
+        <span className="text-xs font-semibold px-2 py-0.5 rounded-lg bg-black/30 text-emerald-200 border border-emerald-400/30">
           Next: {nextPlayerName} →
         </span>
       </button>
