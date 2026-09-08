@@ -4,7 +4,7 @@ import { calculateRanks, formatRankLabel } from '../utils/ranking';
 import { saveMatch } from '../services/matchService';
 import { playVictorySound } from '../utils/audio';
 import confetti from 'canvas-confetti';
-import { Trophy, Cloud, HardDrive, RefreshCw, X, ArrowRight } from 'lucide-react';
+import { Trophy, Cloud, HardDrive, RefreshCw, X, ArrowRight, Timer } from 'lucide-react';
 
 interface EndGameModalProps {
   isOpen: boolean;
@@ -14,6 +14,7 @@ interface EndGameModalProps {
   onNewGame: () => void;
   onOpenHistory: () => void;
   onConfirmGameOver?: () => void;
+  onRedirectToLanding?: () => void;
 }
 
 export const EndGameModal: React.FC<EndGameModalProps> = ({
@@ -24,18 +25,40 @@ export const EndGameModal: React.FC<EndGameModalProps> = ({
   onNewGame,
   onOpenHistory,
   onConfirmGameOver,
+  onRedirectToLanding,
 }) => {
   const [step, setStep] = useState<'confirm' | 'results'>('confirm');
   const [rankedResults, setRankedResults] = useState<PlayerRankResult[]>([]);
   const [isSaving, setIsSaving] = useState(false);
   const [syncResult, setSyncResult] = useState<{ source: 'supabase' | 'local'; error?: string } | null>(null);
+  const [countdown, setCountdown] = useState(5);
+  const [isPaused, setIsPaused] = useState(false);
 
   useEffect(() => {
     if (isOpen) {
       setStep('confirm');
       setSyncResult(null);
+      setCountdown(5);
+      setIsPaused(false);
     }
   }, [isOpen]);
+
+  // Auto-redirect timer when results are displayed
+  useEffect(() => {
+    if (step !== 'results' || isPaused || !isOpen) return;
+
+    if (countdown <= 0) {
+      onClose();
+      onRedirectToLanding?.();
+      return;
+    }
+
+    const timer = setInterval(() => {
+      setCountdown(prev => prev - 1);
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, [step, countdown, isPaused, isOpen, onClose, onRedirectToLanding]);
 
   if (!isOpen) return null;
 
@@ -157,6 +180,38 @@ export const EndGameModal: React.FC<EndGameModalProps> = ({
 
             {/* Content: Leaderboard */}
             <div className="p-5 flex flex-col gap-4">
+              {/* 5-Second Redirect Countdown */}
+              <div className="flex items-center justify-between px-3 py-2 rounded-2xl bg-emerald-50 text-emerald-900 border border-emerald-200 text-xs font-bold">
+                <div className="flex items-center gap-2">
+                  <Timer className="w-4 h-4 text-emerald-600 animate-pulse" />
+                  <span>
+                    {isPaused
+                      ? 'Auto-redirect paused'
+                      : `Redirecting to Home in ${countdown}s...`}
+                  </span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <button
+                    type="button"
+                    onClick={() => setIsPaused(prev => !prev)}
+                    className="px-2 py-0.5 rounded-lg bg-emerald-200/70 hover:bg-emerald-200 text-[10px] text-emerald-950 font-bold transition cursor-pointer"
+                  >
+                    {isPaused ? 'Resume' : 'Pause'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      onClose();
+                      onRedirectToLanding?.();
+                    }}
+                    className="px-2.5 py-0.5 rounded-lg bg-emerald-700 hover:bg-emerald-800 text-[10px] text-white font-black transition cursor-pointer flex items-center gap-1"
+                  >
+                    <span>Go Now</span>
+                    <ArrowRight className="w-3 h-3" />
+                  </button>
+                </div>
+              </div>
+
               <div className="flex items-center justify-between">
                 <span className="text-xs font-bold uppercase tracking-wider text-stone-500">
                   Final Standings

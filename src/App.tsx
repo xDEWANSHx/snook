@@ -18,6 +18,7 @@ export const App: React.FC = () => {
     hasActiveMatch,
     realtimeStatus,
     setRoomCode,
+    exitToLanding,
     canUndo,
     canRedo,
     addPoints,
@@ -152,6 +153,7 @@ export const App: React.FC = () => {
                 theme={theme}
                 onStartNewFrame={() => setIsSetupOpen(true)}
                 onOpenHistory={() => setIsHistoryOpen(true)}
+                onRedirectToLanding={exitToLanding}
               />
             ) : (
               <BallControls
@@ -187,6 +189,7 @@ export const App: React.FC = () => {
         onNewGame={() => setIsSetupOpen(true)}
         onOpenHistory={() => setIsHistoryOpen(true)}
         onConfirmGameOver={() => setGameOver(true)}
+        onRedirectToLanding={exitToLanding}
       />
 
       <HistoryDrawer
