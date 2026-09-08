@@ -350,6 +350,8 @@ export function useSnookerGame() {
     nextPlayer,
     undo,
     redo,
+    lastUndoDescription: undoStack[undoStack.length - 1]?.actionDescription || '',
+    lastRedoDescription: redoStack[redoStack.length - 1]?.actionDescription || '',
     startNewGame,
     toggleDoubleTapMode,
     setGameOver,

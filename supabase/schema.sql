@@ -15,7 +15,7 @@ CREATE TABLE IF NOT EXISTS live_matches (
 CREATE TABLE IF NOT EXISTS matches (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     created_at TIMESTAMPTZ DEFAULT now() NOT NULL,
-    player_count INT NOT NULL CHECK (player_count BETWEEN 2 AND 4),
+    player_count INT NOT NULL CHECK (player_count BETWEEN 2 AND 6),
     winner_names TEXT[] NOT NULL,
     duration_seconds INT DEFAULT 0
 );

@@ -8,6 +8,7 @@ import { EndGameModal } from './components/EndGameModal';
 import { HistoryDrawer } from './components/HistoryDrawer';
 import { ConfigModal } from './components/ConfigModal';
 import { RoomModal } from './components/RoomModal';
+import { ConfirmActionModal } from './components/ConfirmActionModal';
 
 export const App: React.FC = () => {
   const {
@@ -22,9 +23,29 @@ export const App: React.FC = () => {
     nextPlayer,
     undo,
     redo,
+    lastUndoDescription,
+    lastRedoDescription,
     startNewGame,
     toggleDoubleTapMode,
   } = useSnookerGame();
+
+  // Background Theme: 'felt' (rich tournament table) vs 'chalk' (warm vintage parchment)
+  const [theme, setTheme] = useState<'felt' | 'chalk'>(() => {
+    if (typeof window !== 'undefined') {
+      return (localStorage.getItem('snooker_theme') as 'felt' | 'chalk') || 'felt';
+    }
+    return 'felt';
+  });
+
+  const toggleTheme = () => {
+    setTheme(prev => {
+      const next = prev === 'felt' ? 'chalk' : 'felt';
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('snooker_theme', next);
+      }
+      return next;
+    });
+  };
 
   // Modals state
   const [isSetupOpen, setIsSetupOpen] = useState(false);
@@ -32,6 +53,16 @@ export const App: React.FC = () => {
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
   const [isConfigOpen, setIsConfigOpen] = useState(false);
   const [isRoomOpen, setIsRoomOpen] = useState(false);
+  const [confirmModal, setConfirmModal] = useState<{
+    isOpen: boolean;
+    type: 'undo' | 'redo';
+    description: string;
+  }>({
+    isOpen: false,
+    type: 'undo',
+    description: '',
+  });
+
   const [, setConfigRefreshKey] = useState(0);
 
   const nextPlayerIndex = (state.activePlayerIndex + 1) % state.players.length;
@@ -42,9 +73,39 @@ export const App: React.FC = () => {
     setIsSetupOpen(false);
   };
 
+  const handleRequestUndo = () => {
+    if (!canUndo) return;
+    setConfirmModal({
+      isOpen: true,
+      type: 'undo',
+      description: lastUndoDescription || 'Previous shot',
+    });
+  };
+
+  const handleRequestRedo = () => {
+    if (!canRedo) return;
+    setConfirmModal({
+      isOpen: true,
+      type: 'redo',
+      description: lastRedoDescription || 'Next action',
+    });
+  };
+
+  const handleConfirmAction = () => {
+    if (confirmModal.type === 'undo') {
+      undo();
+    } else {
+      redo();
+    }
+  };
+
   return (
-    <div className="min-h-screen bg-noise text-stone-900 flex flex-col justify-between selection:bg-emerald-200">
-      {/* 1. Sticky Top Bar: Match timer, turn counter, room live badge, undo, redo, settings, end game */}
+    <div
+      className={`min-h-screen flex flex-col justify-between transition-colors duration-300 selection:bg-emerald-300 ${
+        theme === 'felt' ? 'theme-felt' : 'theme-chalk'
+      }`}
+    >
+      {/* 1. Sticky Top Bar: Match timer, turn counter, room live badge, undo, redo, theme toggle, settings, end game */}
       <TopBar
         matchStartTime={state.matchStartTime}
         turnCount={state.turnCount}
@@ -52,8 +113,10 @@ export const App: React.FC = () => {
         realtimeStatus={realtimeStatus}
         canUndo={canUndo}
         canRedo={canRedo}
-        onUndo={undo}
-        onRedo={redo}
+        theme={theme}
+        onToggleTheme={toggleTheme}
+        onUndo={handleRequestUndo}
+        onRedo={handleRequestRedo}
         onEndGameClick={() => setIsEndGameOpen(true)}
         onOpenHistory={() => setIsHistoryOpen(true)}
         onOpenSettings={() => setIsConfigOpen(true)}
@@ -63,7 +126,7 @@ export const App: React.FC = () => {
 
       {/* Main Content Area */}
       <main className="flex-1 flex flex-col justify-between max-w-xl mx-auto w-full py-1">
-        {/* 2. Middle Area: Player Cards Grid (Active player prominently enlarged with glowing border) */}
+        {/* 2. Middle Area: Player Cards Grid (2 to 6 Players supported with glowing active border) */}
         <div className="flex-1 flex flex-col justify-center">
           <PlayerCardsGrid
             players={state.players}
@@ -119,6 +182,14 @@ export const App: React.FC = () => {
         roomCode={roomCode}
         onSwitchRoom={setRoomCode}
         realtimeStatus={realtimeStatus}
+      />
+
+      <ConfirmActionModal
+        isOpen={confirmModal.isOpen}
+        type={confirmModal.type}
+        actionDescription={confirmModal.description}
+        onConfirm={handleConfirmAction}
+        onClose={() => setConfirmModal(prev => ({ ...prev, isOpen: false }))}
       />
     </div>
   );
