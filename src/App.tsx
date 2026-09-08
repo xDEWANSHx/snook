@@ -8,11 +8,14 @@ import { EndGameModal } from './components/EndGameModal';
 import { HistoryDrawer } from './components/HistoryDrawer';
 import { RoomModal } from './components/RoomModal';
 import { ConfirmActionModal } from './components/ConfirmActionModal';
+import { LandingView } from './components/LandingView';
+import { CompletedFrameView } from './components/CompletedFrameView';
 
 export const App: React.FC = () => {
   const {
     state,
     roomCode,
+    hasActiveMatch,
     realtimeStatus,
     setRoomCode,
     canUndo,
@@ -20,13 +23,13 @@ export const App: React.FC = () => {
     addPoints,
     applyFoul,
     nextPlayer,
-    setActivePlayer,
     undo,
     redo,
     lastUndoDescription,
     lastRedoDescription,
     startNewGame,
     toggleDoubleTapMode,
+    setGameOver,
   } = useSnookerGame();
 
   // Background Theme: 'felt' (rich tournament table) vs 'chalk' (warm vintage parchment)
@@ -102,7 +105,7 @@ export const App: React.FC = () => {
         theme === 'felt' ? 'theme-felt' : 'theme-chalk'
       }`}
     >
-      {/* 1. Sticky Top Bar: Match timer, turn counter, room live badge, undo, redo, theme toggle, settings, end game */}
+      {/* 1. Sticky Top Bar */}
       <TopBar
         matchStartTime={state.matchStartTime}
         turnCount={state.turnCount}
@@ -111,6 +114,7 @@ export const App: React.FC = () => {
         canUndo={canUndo}
         canRedo={canRedo}
         theme={theme}
+        isGameOver={state.isGameOver}
         onToggleTheme={toggleTheme}
         onUndo={handleRequestUndo}
         onRedo={handleRequestRedo}
@@ -120,29 +124,51 @@ export const App: React.FC = () => {
         onOpenRoom={() => setIsRoomOpen(true)}
       />
 
-      {/* Main Content Area: Uniform spacing throughout with zero dead gaps */}
+      {/* Main Content Area */}
       <main className="flex-1 max-w-xl mx-auto w-full px-3 py-2.5 sm:px-4 flex flex-col gap-2.5 sm:gap-3 justify-start relative z-10">
-        {/* 2. Player Cards Grid (2 to 6 Players supported with glowing active border) */}
-        <PlayerCardsGrid
-          players={state.players}
-          activePlayerIndex={state.activePlayerIndex}
-          theme={theme}
-          onSelectPlayer={setActivePlayer}
-        />
+        {!hasActiveMatch ? (
+          /* Landing Screen: Ask for player names first before table assignment */
+          <LandingView
+            theme={theme}
+            onStartMatch={handleStartNewGame}
+            onJoinRoom={setRoomCode}
+            onOpenHistory={() => setIsHistoryOpen(true)}
+          />
+        ) : (
+          /* Active Match / Scoreboard */
+          <>
+            {/* 2. Player Cards Grid (Display only, non-clickable, turn advances via Turn Over button) */}
+            <PlayerCardsGrid
+              players={state.players}
+              activePlayerIndex={state.activePlayerIndex}
+              theme={theme}
+            />
 
-        {/* 3. Bottom Thumb Zone: Snooker Balls, Foul Section, and Giant "Turn Over" Button */}
-        <BallControls
-          theme={theme}
-          onAddPoints={addPoints}
-          onApplyFoul={applyFoul}
-          onNextPlayer={nextPlayer}
-          nextPlayerName={nextPlayerName}
-          doubleTapMode={state.doubleTapMode}
-          onToggleDoubleTap={toggleDoubleTapMode}
-          redsRemaining={state.redsRemaining}
-          nextBallType={state.nextBallType}
-          colorSequenceIndex={state.colorSequenceIndex}
-        />
+            {/* 3. Conditional view: Completed Frame Leaderboard OR Live Ball Controls */}
+            {state.isGameOver ? (
+              <CompletedFrameView
+                players={state.players}
+                roomCode={roomCode}
+                theme={theme}
+                onStartNewFrame={() => setIsSetupOpen(true)}
+                onOpenHistory={() => setIsHistoryOpen(true)}
+              />
+            ) : (
+              <BallControls
+                theme={theme}
+                onAddPoints={addPoints}
+                onApplyFoul={applyFoul}
+                onNextPlayer={nextPlayer}
+                nextPlayerName={nextPlayerName}
+                doubleTapMode={state.doubleTapMode}
+                onToggleDoubleTap={toggleDoubleTapMode}
+                redsRemaining={state.redsRemaining}
+                nextBallType={state.nextBallType}
+                colorSequenceIndex={state.colorSequenceIndex}
+              />
+            )}
+          </>
+        )}
       </main>
 
       {/* Modal Dialogs */}
@@ -160,6 +186,7 @@ export const App: React.FC = () => {
         matchStartTime={state.matchStartTime}
         onNewGame={() => setIsSetupOpen(true)}
         onOpenHistory={() => setIsHistoryOpen(true)}
+        onConfirmGameOver={() => setGameOver(true)}
       />
 
       <HistoryDrawer

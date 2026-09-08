@@ -6,14 +6,12 @@ interface PlayerCardsGridProps {
   players: Player[];
   activePlayerIndex: number;
   theme?: 'felt' | 'chalk';
-  onSelectPlayer: (index: number) => void;
 }
 
 export const PlayerCardsGrid: React.FC<PlayerCardsGridProps> = ({
   players,
   activePlayerIndex,
   theme = 'felt',
-  onSelectPlayer,
 }) => {
   const getGridColsClass = () => {
     switch (players.length) {
@@ -43,7 +41,6 @@ export const PlayerCardsGrid: React.FC<PlayerCardsGridProps> = ({
             playerIndex={idx}
             totalPlayers={players.length}
             theme={theme}
-            onSelectPlayer={() => onSelectPlayer(idx)}
           />
         ))}
       </div>

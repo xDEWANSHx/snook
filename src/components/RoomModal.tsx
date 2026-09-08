@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Radio, Copy, Check, X, ArrowRight, Smartphone } from 'lucide-react';
+import { normalizeRoomCode } from '../services/realtimeService';
 
 interface RoomModalProps {
   isOpen: boolean;
@@ -21,18 +22,23 @@ export const RoomModal: React.FC<RoomModalProps> = ({
 
   if (!isOpen) return null;
 
-  const currentUrl = typeof window !== 'undefined' ? window.location.href : '';
+  const normalized = normalizeRoomCode(roomCode);
 
   const handleCopyLink = () => {
-    navigator.clipboard.writeText(currentUrl);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+    if (typeof window !== 'undefined') {
+      const url = new URL(window.location.href);
+      url.searchParams.set('room', normalized);
+      navigator.clipboard.writeText(url.toString());
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    }
   };
 
   const handleJoin = (e: React.FormEvent) => {
     e.preventDefault();
-    if (inputCode.trim()) {
-      onSwitchRoom(inputCode.trim());
+    const clean = normalizeRoomCode(inputCode);
+    if (clean) {
+      onSwitchRoom(clean);
       setInputCode('');
       onClose();
     }

@@ -13,6 +13,7 @@ interface EndGameModalProps {
   matchStartTime: number;
   onNewGame: () => void;
   onOpenHistory: () => void;
+  onConfirmGameOver?: () => void;
 }
 
 export const EndGameModal: React.FC<EndGameModalProps> = ({
@@ -22,6 +23,7 @@ export const EndGameModal: React.FC<EndGameModalProps> = ({
   matchStartTime,
   onNewGame,
   onOpenHistory,
+  onConfirmGameOver,
 }) => {
   const [step, setStep] = useState<'confirm' | 'results'>('confirm');
   const [rankedResults, setRankedResults] = useState<PlayerRankResult[]>([]);
@@ -41,6 +43,9 @@ export const EndGameModal: React.FC<EndGameModalProps> = ({
     const ranks = calculateRanks(players);
     setRankedResults(ranks);
     setStep('results');
+
+    // Notify game engine that frame is officially over
+    onConfirmGameOver?.();
 
     // Trigger celebration effects
     try {

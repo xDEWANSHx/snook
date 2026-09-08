@@ -9,6 +9,7 @@ interface TopBarProps {
   canUndo: boolean;
   canRedo: boolean;
   theme: 'felt' | 'chalk';
+  isGameOver?: boolean;
   onToggleTheme: () => void;
   onUndo: () => void;
   onRedo: () => void;
@@ -26,6 +27,7 @@ export const TopBar: React.FC<TopBarProps> = ({
   canUndo,
   canRedo,
   theme,
+  isGameOver = false,
   onToggleTheme,
   onUndo,
   onRedo,
@@ -37,6 +39,7 @@ export const TopBar: React.FC<TopBarProps> = ({
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
 
   useEffect(() => {
+    if (isGameOver) return;
     const updateTimer = () => {
       const diff = Math.max(0, Math.floor((Date.now() - matchStartTime) / 1000));
       setElapsedSeconds(diff);
@@ -45,7 +48,7 @@ export const TopBar: React.FC<TopBarProps> = ({
     updateTimer();
     const interval = setInterval(updateTimer, 1000);
     return () => clearInterval(interval);
-  }, [matchStartTime]);
+  }, [matchStartTime, isGameOver]);
 
   const formatTime = (secs: number) => {
     const mins = Math.floor(secs / 60);
@@ -68,8 +71,8 @@ export const TopBar: React.FC<TopBarProps> = ({
         <div className="flex items-center gap-1.5 sm:gap-2">
           <button
             onClick={onNewGameClick}
-            title="Start New Match (Select Players)"
-            className={`flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-bold transition border ${
+            title="Start New Match (Configure Players)"
+            className={`flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-bold transition border cursor-pointer ${
               isFelt
                 ? 'bg-emerald-950/80 hover:bg-emerald-900 text-emerald-200 border-emerald-800/80'
                 : 'bg-stone-100 hover:bg-stone-200 text-stone-800 border-stone-200'
@@ -79,29 +82,51 @@ export const TopBar: React.FC<TopBarProps> = ({
             <span className="font-black tracking-tight hidden xs:inline">NEW</span>
           </button>
 
-          {/* Room Live Sync Badge */}
-          <button
-            onClick={onOpenRoom}
-            title="Share Room link with other phones"
-            className={`flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-mono font-bold transition border shadow-sm ${
-              realtimeStatus === 'SUBSCRIBED'
-                ? 'bg-emerald-900/80 text-emerald-300 border-emerald-600 hover:bg-emerald-800'
-                : 'bg-amber-950/70 text-amber-300 border-amber-600 hover:bg-amber-900'
-            }`}
-          >
-            <Radio className={`w-3 h-3 ${realtimeStatus === 'SUBSCRIBED' ? 'text-emerald-400 animate-pulse' : 'text-amber-400'}`} />
-            <span>{roomCode.startsWith('TABLE-') ? roomCode.replace('TABLE-', 'Table ') : `Table ${roomCode}`}</span>
-          </button>
+          {/* Room Live Sync Badge (only if room is active) */}
+          {roomCode && (
+            <button
+              onClick={onOpenRoom}
+              title="Share Room link with other phones"
+              className={`flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-mono font-bold transition border shadow-sm cursor-pointer ${
+                isGameOver
+                  ? 'bg-stone-800 text-amber-300 border-stone-700'
+                  : realtimeStatus === 'SUBSCRIBED'
+                  ? 'bg-emerald-900/80 text-emerald-300 border-emerald-600 hover:bg-emerald-800'
+                  : 'bg-amber-950/70 text-amber-300 border-amber-600 hover:bg-amber-900'
+              }`}
+            >
+              <Radio
+                className={`w-3 h-3 ${
+                  !isGameOver && realtimeStatus === 'SUBSCRIBED'
+                    ? 'text-emerald-400 animate-pulse'
+                    : 'text-amber-400'
+                }`}
+              />
+              <span>Table #{roomCode}</span>
+            </button>
+          )}
 
-          {/* Timer */}
-          <div className="flex items-center gap-1 px-2 py-1 rounded-md bg-stone-950 text-stone-100 text-xs font-mono font-bold shadow-inner border border-stone-800">
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
-            <span>{formatTime(elapsedSeconds)}</span>
-          </div>
+          {/* Timer & Turn or Finished badge */}
+          {roomCode && (
+            <>
+              {isGameOver ? (
+                <span className="px-2 py-0.5 rounded-md bg-rose-600 text-white text-xs font-black uppercase tracking-wider">
+                  Finished
+                </span>
+              ) : (
+                <>
+                  <div className="flex items-center gap-1 px-2 py-1 rounded-md bg-stone-950 text-stone-100 text-xs font-mono font-bold shadow-inner border border-stone-800">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+                    <span>{formatTime(elapsedSeconds)}</span>
+                  </div>
 
-          <span className="text-[11px] font-semibold text-stone-400 hidden sm:inline">
-            Turn {turnCount}
-          </span>
+                  <span className="text-[11px] font-semibold text-stone-400 hidden sm:inline">
+                    Turn {turnCount}
+                  </span>
+                </>
+              )}
+            </>
+          )}
         </div>
 
         {/* Right: Actions */}
@@ -110,7 +135,7 @@ export const TopBar: React.FC<TopBarProps> = ({
           <button
             onClick={onToggleTheme}
             title={`Switch Background Theme (Current: ${isFelt ? 'Championship Felt' : 'Warm Chalk'})`}
-            className={`p-1.5 sm:p-2 rounded-xl flex items-center justify-center transition-all border shadow-sm ${
+            className={`p-1.5 sm:p-2 rounded-xl flex items-center justify-center transition-all border shadow-sm cursor-pointer ${
               isFelt
                 ? 'bg-emerald-900/60 hover:bg-emerald-800 text-emerald-300 border-emerald-700/60'
                 : 'bg-stone-100 hover:bg-stone-200 text-stone-700 border-stone-200'
@@ -120,27 +145,29 @@ export const TopBar: React.FC<TopBarProps> = ({
             <Palette className="w-4 h-4" />
           </button>
 
-          {/* Undo Button with prompt indicator */}
-          <button
-            onClick={onUndo}
-            disabled={!canUndo}
-            title="Undo Last Action"
-            className={`p-1.5 sm:p-2 rounded-xl flex items-center justify-center transition-all ${
-              canUndo
-                ? 'bg-amber-500/20 text-amber-400 hover:bg-amber-500/30 active:scale-95 shadow-sm border border-amber-500/50 font-semibold'
-                : 'bg-stone-800/30 text-stone-500 cursor-not-allowed border border-transparent'
-            }`}
-            aria-label="Undo"
-          >
-            <RotateCcw className="w-4 h-4" />
-          </button>
+          {/* Undo Button with prompt indicator (only during active frame) */}
+          {roomCode && !isGameOver && (
+            <button
+              onClick={onUndo}
+              disabled={!canUndo}
+              title="Undo Last Action"
+              className={`p-1.5 sm:p-2 rounded-xl flex items-center justify-center transition-all ${
+                canUndo
+                  ? 'bg-amber-500/20 text-amber-400 hover:bg-amber-500/30 active:scale-95 shadow-sm border border-amber-500/50 font-semibold cursor-pointer'
+                  : 'bg-stone-800/30 text-stone-500 cursor-not-allowed border border-transparent'
+              }`}
+              aria-label="Undo"
+            >
+              <RotateCcw className="w-4 h-4" />
+            </button>
+          )}
 
           {/* Redo Button */}
-          {canRedo && (
+          {roomCode && !isGameOver && canRedo && (
             <button
               onClick={onRedo}
               title="Redo Action"
-              className="p-1.5 sm:p-2 rounded-xl flex items-center justify-center bg-amber-500/10 text-amber-300 hover:bg-amber-500/20 active:scale-95 transition-all border border-amber-500/40 shadow-sm"
+              className="p-1.5 sm:p-2 rounded-xl flex items-center justify-center bg-amber-500/10 text-amber-300 hover:bg-amber-500/20 active:scale-95 transition-all border border-amber-500/40 shadow-sm cursor-pointer"
               aria-label="Redo"
             >
               <RotateCw className="w-4 h-4" />
@@ -151,7 +178,7 @@ export const TopBar: React.FC<TopBarProps> = ({
           <button
             onClick={onOpenHistory}
             title="Match History"
-            className={`p-1.5 sm:p-2 rounded-xl transition border shadow-sm ${
+            className={`p-1.5 sm:p-2 rounded-xl transition border shadow-sm cursor-pointer ${
               isFelt
                 ? 'bg-stone-900/80 hover:bg-stone-800 text-stone-200 border-stone-700'
                 : 'bg-stone-100 hover:bg-stone-200 text-stone-700 border-stone-200'
@@ -161,14 +188,16 @@ export const TopBar: React.FC<TopBarProps> = ({
             <History className="w-4 h-4" />
           </button>
 
-          {/* End Game Button */}
-          <button
-            onClick={onEndGameClick}
-            className="flex items-center gap-1 px-2.5 sm:px-3 py-1.5 rounded-xl bg-rose-600 hover:bg-rose-700 active:scale-95 text-white text-xs font-black transition shadow-sm border border-rose-700"
-          >
-            <Flag className="w-3.5 h-3.5" />
-            <span className="hidden xs:inline">End Frame</span>
-          </button>
+          {/* End Game Button (only during live frame) */}
+          {roomCode && !isGameOver && (
+            <button
+              onClick={onEndGameClick}
+              className="flex items-center gap-1 px-2.5 sm:px-3 py-1.5 rounded-xl bg-rose-600 hover:bg-rose-700 active:scale-95 text-white text-xs font-black transition shadow-sm border border-rose-700 cursor-pointer"
+            >
+              <Flag className="w-3.5 h-3.5" />
+              <span className="hidden xs:inline">End Frame</span>
+            </button>
+          )}
         </div>
       </div>
     </header>

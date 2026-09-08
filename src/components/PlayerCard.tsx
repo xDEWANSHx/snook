@@ -8,7 +8,6 @@ interface PlayerCardProps {
   playerIndex: number;
   totalPlayers: number;
   theme?: 'felt' | 'chalk';
-  onSelectPlayer: () => void;
 }
 
 export const PlayerCard: React.FC<PlayerCardProps> = ({
@@ -17,24 +16,22 @@ export const PlayerCard: React.FC<PlayerCardProps> = ({
   playerIndex,
   totalPlayers,
   theme = 'felt',
-  onSelectPlayer,
 }) => {
   const isCompact = totalPlayers >= 5;
   const isFelt = theme === 'felt';
 
   return (
     <div
-      onClick={onSelectPlayer}
-      className={`relative rounded-2xl transition-all duration-200 cursor-pointer overflow-hidden ${
+      className={`relative rounded-2xl transition-all duration-200 select-none overflow-hidden ${
         isCompact ? 'p-2 sm:p-2.5' : 'p-2.5 sm:p-3.5'
       } ${
         isFelt
           ? isActive
             ? 'bg-gradient-to-b from-[#0f2e24] via-[#0d2a21] to-[#0a231b] border-2 border-emerald-400 shadow-[0_4px_25px_rgba(16,185,129,0.25)] scale-[1.01] ring-4 ring-emerald-500/20'
-            : 'bg-[#0a221a]/85 backdrop-blur-sm border border-emerald-900/60 hover:border-emerald-700/60 hover:bg-[#0d2c21] shadow-md opacity-90'
+            : 'bg-[#0a221a]/85 backdrop-blur-sm border border-emerald-900/60 shadow-md opacity-90'
           : isActive
           ? 'bg-gradient-to-b from-white via-white to-stone-50 border-2 border-emerald-600 shadow-card-glow-active scale-[1.01] ring-4 ring-emerald-500/20'
-          : 'bg-white/90 backdrop-blur-sm border border-stone-300/80 hover:border-stone-400 hover:bg-white shadow-sm opacity-90'
+          : 'bg-white/90 backdrop-blur-sm border border-stone-300/80 shadow-sm opacity-90'
       }`}
     >
       {/* Decorative Brass Table Rivet in corner */}
