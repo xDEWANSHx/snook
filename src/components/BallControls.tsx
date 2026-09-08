@@ -43,7 +43,7 @@ export const BallControls: React.FC<BallControlsProps> = ({
   // Pending ball for double-tap confirmation
   const [pendingBall, setPendingBall] = useState<number | null>(null);
   const [pendingFoul, setPendingFoul] = useState<number | null>(null);
-  const [pendingAction, setPendingAction] = useState<'miss' | 'cue_pot' | null>(null);
+  const [pendingCuePot, setPendingCuePot] = useState<boolean>(false);
   const [committedBallAnim, setCommittedBallAnim] = useState<number | null>(null);
   
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -66,23 +66,25 @@ export const BallControls: React.FC<BallControlsProps> = ({
   };
 
   /**
-   * Determine if a ball is legally enabled based on snooker rules
+   * Determine if a ball is legally enabled based on snooker rules:
+   * 1. While reds remain (> 0), both Red AND all 6 Colors are active (player can pot red then any color).
+   * 2. When 15 reds are over (0 reds), Red is disabled.
+   * 3. The 1 shot right after the 15th red allows ANY color.
+   * 4. Then strict Colors Sequence begins: Yellow -> Green -> Brown -> Blue -> Pink -> Black.
    */
   const isBallActive = (ball: Ball): boolean => {
     if (ball.name === 'Red') {
-      if (redsRemaining <= 0) return false;
-      return nextBallType === 'RED';
+      return redsRemaining > 0;
     }
 
-    // Color ball (+2 to +7)
+    // While reds remain on table, all colors are active!
     if (redsRemaining > 0) {
-      // While reds remain, colors can only be shot right after a red
-      return nextBallType === 'COLOR';
+      return true;
     }
 
     // Reds are 0
     if (nextBallType === 'COLOR') {
-      // Bonus color after 15th red
+      // 1 bonus color shot after the 15th red
       return true;
     }
 
@@ -91,17 +93,17 @@ export const BallControls: React.FC<BallControlsProps> = ({
       return ball.name === activeColor;
     }
 
-    return true;
+    return false;
   };
 
   /**
-   * Horizontal Action Buttons (Miss 0 & Cue Pot -4)
+   * Dedicated Cue Pot / In-Off (-4 Pts) Press
    */
-  const handleActionPress = (action: 'miss' | 'cue_pot') => {
+  const handleCuePotPress = () => {
     if (isLockRef.current) return;
 
-    const points = action === 'miss' ? 0 : -4;
-    const reason = action === 'miss' ? 'Shot Missed (0)' : 'Cue Ball Potted / In-Off (-4)';
+    const points = -4;
+    const reason = 'Cue Ball Potted / In-Off (-4)';
 
     if (!doubleTapMode) {
       isLockRef.current = true;
@@ -112,19 +114,19 @@ export const BallControls: React.FC<BallControlsProps> = ({
       return;
     }
 
-    if (pendingAction === action) {
+    if (pendingCuePot) {
       isLockRef.current = true;
       if (actionTimerRef.current) clearTimeout(actionTimerRef.current);
-      setPendingAction(null);
+      setPendingCuePot(false);
       onApplyFoul(points, reason);
       setTimeout(() => {
         isLockRef.current = false;
       }, 300);
     } else {
       if (actionTimerRef.current) clearTimeout(actionTimerRef.current);
-      setPendingAction(action);
+      setPendingCuePot(true);
       actionTimerRef.current = setTimeout(() => {
-        setPendingAction(null);
+        setPendingCuePot(false);
       }, 850);
     }
   };
@@ -211,54 +213,31 @@ export const BallControls: React.FC<BallControlsProps> = ({
 
   return (
     <div className="w-full flex flex-col gap-2 sm:gap-2.5">
-      {/* 1. Top Horizontal Action Bars: Miss (0 Pts) & Cue Pot / In-Off (-4 Pts) */}
-      <div className="grid grid-cols-2 gap-2">
-        {/* Button A: Shot Missed (0) */}
-        <button
-          type="button"
-          onClick={() => handleActionPress('miss')}
-          className={`py-2.5 px-3 rounded-2xl font-black text-xs flex items-center justify-between transition-all duration-150 border-2 shadow-sm touch-manipulation cursor-pointer ${
-            pendingAction === 'miss'
-              ? 'bg-amber-400 text-stone-950 border-amber-500 ring-4 ring-amber-300 animate-pulse scale-[1.01]'
-              : isFelt
-              ? 'bg-[#0a241c] hover:bg-[#0e3126] text-emerald-100 border-emerald-700/60 active:scale-[0.98]'
-              : 'bg-stone-900 hover:bg-stone-800 text-stone-100 border-stone-700 active:scale-[0.98]'
-          }`}
-        >
-          <div className="flex items-center gap-2">
-            <span className="text-sm leading-none">❌</span>
-            <span className="truncate font-black">
-              {pendingAction === 'miss' ? 'Confirm Miss?' : 'Shot Missed'}
-            </span>
-          </div>
-          <span className={`font-mono font-bold text-[11px] px-1.5 py-0.5 rounded ${isFelt ? 'bg-emerald-950 text-emerald-300 border border-emerald-800/80' : 'bg-black/40 text-stone-300'}`}>
-            0 pts
+      {/* 1. Dedicated Cue Pot / In-Off Foul Action Bar (Shot Missed removed per user request) */}
+      <button
+        type="button"
+        onClick={handleCuePotPress}
+        className={`w-full py-2.5 px-3.5 rounded-2xl font-black text-xs flex items-center justify-between transition-all duration-150 border-2 shadow-sm touch-manipulation cursor-pointer ${
+          pendingCuePot
+            ? 'bg-amber-400 text-stone-950 border-amber-500 ring-4 ring-amber-300 animate-pulse scale-[1.01]'
+            : isFelt
+            ? 'bg-gradient-to-r from-[#2c1218] via-[#1d0d11] to-[#12080a] hover:from-[#3a1820] text-rose-200 border-rose-700/60 active:scale-[0.99]'
+            : 'bg-gradient-to-r from-rose-950 via-rose-900 to-stone-900 hover:from-rose-900 text-rose-200 border-rose-800/80 active:scale-[0.99]'
+        }`}
+      >
+        <div className="flex items-center gap-2">
+          <span className="text-base leading-none">⚪🕳️</span>
+          <span className="truncate font-black tracking-wide text-xs sm:text-sm">
+            {pendingCuePot ? 'Tap again to confirm In-Off penalty!' : 'Cue Pot / In-Off Foul Penalty'}
           </span>
-        </button>
-
-        {/* Button B: Cue Pot / In-Off (-4 Pts) */}
-        <button
-          type="button"
-          onClick={() => handleActionPress('cue_pot')}
-          className={`py-2.5 px-3 rounded-2xl font-black text-xs flex items-center justify-between transition-all duration-150 border-2 shadow-sm touch-manipulation cursor-pointer ${
-            pendingAction === 'cue_pot'
-              ? 'bg-amber-400 text-stone-950 border-amber-500 ring-4 ring-amber-300 animate-pulse scale-[1.01]'
-              : isFelt
-              ? 'bg-gradient-to-r from-[#2c1218] to-[#1a0c10] hover:from-[#3a1820] text-rose-200 border-rose-700/60 active:scale-[0.98]'
-              : 'bg-gradient-to-r from-rose-950 to-stone-900 hover:from-rose-900 hover:to-stone-850 text-rose-200 border-rose-800/80 active:scale-[0.98]'
-          }`}
-        >
-          <div className="flex items-center gap-1.5">
-            <span className="text-sm leading-none">⚪🕳️</span>
-            <span className="truncate font-black">
-              {pendingAction === 'cue_pot' ? 'Confirm In-Off?' : 'Cue Pot / In-Off'}
-            </span>
-          </div>
-          <span className="font-mono font-black text-[11px] px-1.5 py-0.5 rounded bg-rose-900 text-white border border-rose-600 shadow-xs">
-            -4
+        </div>
+        <div className="flex items-center gap-2">
+          <span className="text-[10px] uppercase font-bold text-rose-300/80 hidden xs:inline">Foul Deduct</span>
+          <span className="font-mono font-black text-xs px-2 py-0.5 rounded bg-rose-900 text-white border border-rose-500 shadow-xs">
+            -4 pts
           </span>
-        </button>
-      </div>
+        </div>
+      </button>
 
       {/* 2. Pot Balls Grid with 15-Reds Counter & Sequence Progression */}
       <div className={`backdrop-blur-md rounded-2xl p-2.5 sm:p-3 border shadow-xl relative ${
