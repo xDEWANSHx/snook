@@ -43,8 +43,45 @@ export function useSnookerGame() {
   const [roomCode, setRoomCodeState] = useState<string>(getInitialRoomCode);
   const [realtimeStatus, setRealtimeStatus] = useState<'SUBSCRIBED' | 'CONNECTING' | 'DISCONNECTED'>('CONNECTING');
   const [state, setState] = useState<GameState>(DEFAULT_INITIAL_STATE);
-  const [undoStack, setUndoStack] = useState<ActionHistoryEntry[]>([]);
-  const [redoStack, setRedoStack] = useState<ActionHistoryEntry[]>([]);
+  const stateRef = useRef(state);
+  useEffect(() => {
+    stateRef.current = state;
+  }, [state]);
+
+  const lastLocalActionTimeRef = useRef<number>(0);
+
+  const [undoStack, setUndoStack] = useState<ActionHistoryEntry[]>(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        const saved = sessionStorage.getItem(`snooker_undo_${roomCode}`);
+        if (saved) return JSON.parse(saved);
+      } catch {}
+    }
+    return [];
+  });
+
+  const [redoStack, setRedoStack] = useState<ActionHistoryEntry[]>(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        const saved = sessionStorage.getItem(`snooker_redo_${roomCode}`);
+        if (saved) return JSON.parse(saved);
+      } catch {}
+    }
+    return [];
+  });
+
+  // Sync undoStack & redoStack to sessionStorage for seamless page reloads
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      sessionStorage.setItem(`snooker_undo_${roomCode}`, JSON.stringify(undoStack));
+    }
+  }, [undoStack, roomCode]);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      sessionStorage.setItem(`snooker_redo_${roomCode}`, JSON.stringify(redoStack));
+    }
+  }, [redoStack, roomCode]);
 
   // Ref to hold the broadcast function from realtime channel
   const broadcastRef = useRef<((s: GameState) => void) | null>(null);
@@ -110,6 +147,10 @@ export function useSnookerGame() {
     const { broadcastState, unsubscribe } = subscribeToRoom(
       roomCode,
       (remoteState) => {
+        // Prevent delayed Postgres echo from stomping over fresh local actions or undo within 1200ms
+        if (Date.now() - lastLocalActionTimeRef.current < 1200) {
+          return;
+        }
         isRemoteUpdateRef.current = true;
         setState(remoteState);
         playTurnSwitchSound();
@@ -130,6 +171,7 @@ export function useSnookerGame() {
   // Helper to commit state changes locally, broadcast to other phones, and persist
   const dispatchStateChange = useCallback(
     (newState: GameState) => {
+      lastLocalActionTimeRef.current = Date.now();
       setState(newState);
 
       // Broadcast immediately to all connected phones via WebSockets
@@ -151,17 +193,18 @@ export function useSnookerGame() {
   // Save snapshot to undo stack
   const recordAction = useCallback(
     (actionDescription: string) => {
+      const snapshot = cloneState(stateRef.current);
       setUndoStack(prev => [
         ...prev,
         {
-          state: cloneState(state),
+          state: snapshot,
           actionDescription,
           timestamp: Date.now(),
         },
       ]);
       setRedoStack([]);
     },
-    [cloneState, state]
+    [cloneState]
   );
 
   /**
@@ -319,13 +362,14 @@ export function useSnookerGame() {
   const undo = useCallback(() => {
     if (undoStack.length === 0) return;
 
+    lastLocalActionTimeRef.current = Date.now();
     const lastEntry = undoStack[undoStack.length - 1];
     setUndoStack(prev => prev.slice(0, prev.length - 1));
 
     setRedoStack(prev => [
       ...prev,
       {
-        state: cloneState(state),
+        state: cloneState(stateRef.current),
         actionDescription: 'Current State',
         timestamp: Date.now(),
       },
@@ -333,7 +377,7 @@ export function useSnookerGame() {
 
     playTurnSwitchSound();
     dispatchStateChange(lastEntry.state);
-  }, [undoStack, cloneState, state, dispatchStateChange]);
+  }, [undoStack, cloneState, dispatchStateChange]);
 
   /**
    * Redo action state
@@ -341,13 +385,14 @@ export function useSnookerGame() {
   const redo = useCallback(() => {
     if (redoStack.length === 0) return;
 
+    lastLocalActionTimeRef.current = Date.now();
     const nextEntry = redoStack[redoStack.length - 1];
     setRedoStack(prev => prev.slice(0, prev.length - 1));
 
     setUndoStack(prev => [
       ...prev,
       {
-        state: cloneState(state),
+        state: cloneState(stateRef.current),
         actionDescription: 'Pre-Redo State',
         timestamp: Date.now(),
       },
@@ -355,7 +400,7 @@ export function useSnookerGame() {
 
     playTurnSwitchSound();
     dispatchStateChange(nextEntry.state);
-  }, [redoStack, cloneState, state, dispatchStateChange]);
+  }, [redoStack, cloneState, dispatchStateChange]);
 
   /**
    * Initialize a new match session with custom player names and fresh 3-digit table number

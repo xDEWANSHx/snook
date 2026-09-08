@@ -67,27 +67,33 @@ export const BallControls: React.FC<BallControlsProps> = ({
 
   /**
    * Determine if a ball is legally enabled based on snooker rules:
-   * 1. While reds remain (> 0), both Red AND all 6 Colors are active (player can pot red then any color).
-   * 2. When 15 reds are over (0 reds), Red is disabled.
-   * 3. The 1 shot right after the 15th red allows ANY color.
-   * 4. Then strict Colors Sequence begins: Yellow -> Green -> Brown -> Blue -> Pink -> Black.
+   * 1. Red is on: ONLY Red is unlocked, all 6 colors are locked.
+   * 2. After potting Red: Red locks, and ALL 6 colors unlock!
+   * 3. After potting a color: Colors lock, and Red unlocks!
+   * 4. When all 15 reds are over: 1 bonus color shot, then strict sequence (Yellow -> Black).
    */
   const isBallActive = (ball: Ball): boolean => {
-    if (ball.name === 'Red') {
-      return redsRemaining > 0;
-    }
-
-    // While reds remain on table, all colors are active!
+    // While reds remain on table (> 0):
     if (redsRemaining > 0) {
-      return true;
+      if (nextBallType === 'RED') {
+        return ball.name === 'Red';
+      }
+      if (nextBallType === 'COLOR') {
+        return ball.name !== 'Red';
+      }
     }
 
-    // Reds are 0
+    // Reds are 0 (all 15 reds potted)
+    if (ball.name === 'Red') {
+      return false;
+    }
+
+    // 1 bonus color shot after the 15th red
     if (nextBallType === 'COLOR') {
-      // 1 bonus color shot after the 15th red
       return true;
     }
 
+    // Strict clearance sequence
     if (nextBallType === 'COLOR_SEQUENCE') {
       const activeColor = COLOR_SEQUENCE_NAMES[colorSequenceIndex];
       return ball.name === activeColor;
