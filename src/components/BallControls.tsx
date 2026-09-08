@@ -213,7 +213,10 @@ export const BallControls: React.FC<BallControlsProps> = ({
       return '🌈 Legal: Any Color (+2 to +7)';
     }
     if (nextBallType === 'COLOR') return '🌈 Final Color after 15th Red';
-    const target = COLOR_SEQUENCE_NAMES[colorSequenceIndex] || 'Frame Complete';
+    if (colorSequenceIndex >= COLOR_SEQUENCE_NAMES.length) {
+      return '🏆 All Balls Potted — Frame Complete';
+    }
+    const target = COLOR_SEQUENCE_NAMES[colorSequenceIndex] || 'Black';
     return `🎯 Sequence: ${target} (+${colorSequenceIndex + 2})`;
   };
 

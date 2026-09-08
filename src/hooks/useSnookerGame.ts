@@ -304,20 +304,6 @@ export function useSnookerGame() {
     (points: number, ballName: string) => {
       if (state.isGameOver) return;
 
-      recordAction(`Potted ${ballName} (+${points})`);
-      playBallClackSound(0.85 + points * 0.05);
-
-      const updatedPlayers = state.players.map((p, idx) => {
-        if (idx === state.activePlayerIndex) {
-          return {
-            ...p,
-            score: p.score + points,
-            currentBreak: p.currentBreak + points,
-          };
-        }
-        return p;
-      });
-
       let nextReds = state.redsRemaining !== undefined ? state.redsRemaining : 15;
       let nextType = state.nextBallType || 'RED';
       let nextSeqIndex = state.colorSequenceIndex || 0;
@@ -338,12 +324,33 @@ export function useSnookerGame() {
         }
       }
 
+      const isFrameCleared = (state.nextBallType === 'COLOR_SEQUENCE' && ballName === 'Black') || nextSeqIndex >= 6;
+
+      if (isFrameCleared) {
+        recordAction(`Potted ${ballName} (+${points}) — All Balls Cleared! 🏆`);
+      } else {
+        recordAction(`Potted ${ballName} (+${points})`);
+      }
+      playBallClackSound(0.85 + points * 0.05);
+
+      const updatedPlayers = state.players.map((p, idx) => {
+        if (idx === state.activePlayerIndex) {
+          return {
+            ...p,
+            score: p.score + points,
+            currentBreak: p.currentBreak + points,
+          };
+        }
+        return p;
+      });
+
       const next: GameState = {
         ...state,
         players: updatedPlayers,
         redsRemaining: nextReds,
         nextBallType: nextType,
         colorSequenceIndex: nextSeqIndex,
+        isGameOver: isFrameCleared ? true : state.isGameOver,
       };
 
       dispatchStateChange(next);

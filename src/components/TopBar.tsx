@@ -69,18 +69,27 @@ export const TopBar: React.FC<TopBarProps> = ({
       <div className="max-w-xl mx-auto flex items-center justify-between gap-1.5 sm:gap-2">
         {/* Left: Branding & Timer & Room Code */}
         <div className="flex items-center gap-1.5 sm:gap-2">
-          <button
-            onClick={onNewGameClick}
-            title="Start New Match (Configure Players)"
-            className={`flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-bold transition border cursor-pointer ${
-              isFelt
-                ? 'bg-emerald-950/80 hover:bg-emerald-900 text-emerald-200 border-emerald-800/80'
-                : 'bg-stone-100 hover:bg-stone-200 text-stone-800 border-stone-200'
-            }`}
-          >
-            <span className="text-sm sm:text-base leading-none">🎱</span>
-            <span className="font-black tracking-tight hidden xs:inline">NEW</span>
-          </button>
+          {roomCode ? (
+            <button
+              onClick={onNewGameClick}
+              title="Start New Match (Configure Players)"
+              className={`flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-bold transition border cursor-pointer ${
+                isFelt
+                  ? 'bg-emerald-950/80 hover:bg-emerald-900 text-emerald-200 border-emerald-800/80'
+                  : 'bg-stone-100 hover:bg-stone-200 text-stone-800 border-stone-200'
+              }`}
+            >
+              <span className="text-sm sm:text-base leading-none">🎱</span>
+              <span className="font-black tracking-tight hidden xs:inline">NEW</span>
+            </button>
+          ) : (
+            <div className="flex items-center gap-1.5 px-2 py-1 rounded-lg text-xs font-bold select-none">
+              <span className="text-base leading-none">🎱</span>
+              <span className={`font-black tracking-wider ${isFelt ? 'text-emerald-300' : 'text-stone-800'}`}>
+                SNOOK
+              </span>
+            </div>
+          )}
 
           {/* Room Live Sync Badge (only if room is active) */}
           {roomCode && (

@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
+import confetti from 'canvas-confetti';
 import type { Player } from '../types';
 import { calculateRanks, formatRankLabel } from '../utils/ranking';
+import { playVictorySound } from '../utils/audio';
 import { Trophy, PlusCircle, History, Timer, ArrowRight, Pause, Play } from 'lucide-react';
 
 interface CompletedFrameViewProps {
@@ -28,6 +30,21 @@ export const CompletedFrameView: React.FC<CompletedFrameViewProps> = ({
   // 5-second countdown to auto-redirect to landing page
   const [countdown, setCountdown] = useState(5);
   const [isPaused, setIsPaused] = useState(false);
+
+  // Play celebration victory chime and confetti on mount
+  useEffect(() => {
+    try {
+      playVictorySound();
+      confetti({
+        particleCount: 75,
+        spread: 60,
+        origin: { y: 0.55 },
+        disableForReducedMotion: true,
+      });
+    } catch {
+      // Ignore
+    }
+  }, []);
 
   useEffect(() => {
     if (isPaused) return;
