@@ -22,7 +22,11 @@ const DEFAULT_INITIAL_STATE: GameState = {
   colorSequenceIndex: 0,
 };
 
-// Generate random friendly room code (e.g., TABLE-42 or SNOOK-88)
+// Generate a clean random 3-digit table number (100 to 999)
+export function generateRandomTableCode(): string {
+  return String(Math.floor(100 + Math.random() * 900));
+}
+
 function getInitialRoomCode(): string {
   if (typeof window !== 'undefined') {
     const params = new URLSearchParams(window.location.search);
@@ -32,8 +36,7 @@ function getInitialRoomCode(): string {
     const stored = localStorage.getItem('snooker_active_room');
     if (stored) return stored.toUpperCase().trim();
   }
-  const randomNum = Math.floor(100 + Math.random() * 900);
-  return `TABLE-${randomNum}`;
+  return generateRandomTableCode();
 }
 
 export function useSnookerGame() {
@@ -50,7 +53,7 @@ export function useSnookerGame() {
 
   // Sync room code to URL query params and localStorage
   const setRoomCode = useCallback((newRoom: string) => {
-    const clean = newRoom.toUpperCase().trim() || 'TABLE-1';
+    const clean = newRoom.toUpperCase().trim() || generateRandomTableCode();
     setRoomCodeState(clean);
     if (typeof window !== 'undefined') {
       localStorage.setItem('snooker_active_room', clean);
@@ -355,7 +358,7 @@ export function useSnookerGame() {
   }, [redoStack, cloneState, state, dispatchStateChange]);
 
   /**
-   * Initialize a new match session with custom player names
+   * Initialize a new match session with custom player names and fresh 3-digit table number
    */
   const startNewGame = useCallback(
     (playerNames: string[]) => {
@@ -380,11 +383,15 @@ export function useSnookerGame() {
         colorSequenceIndex: 0,
       };
 
+      // Regenerate fresh random 3-digit table number for new match
+      const newTableCode = generateRandomTableCode();
+      setRoomCode(newTableCode);
+
       setUndoStack([]);
       setRedoStack([]);
       dispatchStateChange(newState);
     },
-    [state.doubleTapMode, dispatchStateChange]
+    [state.doubleTapMode, setRoomCode, dispatchStateChange]
   );
 
   /**

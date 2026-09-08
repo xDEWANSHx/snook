@@ -94,7 +94,7 @@ export const TopBar: React.FC<TopBarProps> = ({
             }`}
           >
             <Radio className={`w-3 h-3 ${realtimeStatus === 'SUBSCRIBED' ? 'text-emerald-400 animate-pulse' : 'text-amber-400'}`} />
-            <span>{roomCode}</span>
+            <span>{roomCode.startsWith('TABLE-') ? roomCode.replace('TABLE-', 'Table ') : `Table ${roomCode}`}</span>
           </button>
 
           {/* Timer */}

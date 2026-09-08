@@ -85,10 +85,16 @@ export const RoomModal: React.FC<RoomModalProps> = ({
           {/* Current Room Code Display */}
           <div className="text-center p-4 rounded-2xl bg-stone-900 text-white border border-stone-800 shadow-inner">
             <span className="text-[11px] font-bold uppercase tracking-wider text-emerald-400 block mb-1">
-              Active Match Room Code
+              Active Table Number
             </span>
-            <span className="text-3xl sm:text-4xl font-black font-mono tracking-wider text-white">
-              {roomCode}
+            <div className="flex items-center justify-center gap-2">
+              <span className="text-stone-400 font-bold text-lg sm:text-xl">TABLE #</span>
+              <span className="text-3xl sm:text-5xl font-black font-mono tracking-widest text-emerald-300">
+                {roomCode.replace('TABLE-', '')}
+              </span>
+            </div>
+            <span className="text-[11px] text-stone-400 block mt-1.5">
+              Enter this 3-digit code on any mobile phone to sync scores live
             </span>
           </div>
 
@@ -104,25 +110,26 @@ export const RoomModal: React.FC<RoomModalProps> = ({
 
           <p className="text-[11px] text-stone-500 text-center leading-relaxed flex items-center justify-center gap-1">
             <Smartphone className="w-3.5 h-3.5 text-stone-400" />
-            <span>Send this link on WhatsApp so players can score from their own phones.</span>
+            <span>Send link on WhatsApp so friends can join from their phones.</span>
           </p>
 
           {/* Join Another Room Form */}
           <div className="border-t border-stone-200 pt-4">
             <label className="text-xs font-bold uppercase tracking-wider text-stone-600 block mb-1.5">
-              Join Existing Room
+              Join Another Table
             </label>
             <form onSubmit={handleJoin} className="flex gap-2">
               <input
                 type="text"
-                placeholder="e.g. TABLE-42"
+                placeholder="Enter 3-digit Table # (e.g. 482)"
                 value={inputCode}
                 onChange={(e) => setInputCode(e.target.value)}
+                maxLength={12}
                 className="flex-1 px-3.5 py-2.5 bg-white border border-stone-300 rounded-xl text-xs font-mono font-bold uppercase tracking-wider focus:outline-none focus:ring-2 focus:ring-emerald-600 shadow-sm"
               />
               <button
                 type="submit"
-                className="py-2.5 px-4 rounded-xl bg-stone-800 hover:bg-stone-900 text-white text-xs font-bold transition flex items-center gap-1"
+                className="py-2.5 px-4 rounded-xl bg-stone-800 hover:bg-stone-900 text-white text-xs font-bold transition flex items-center gap-1 cursor-pointer active:scale-95"
               >
                 <span>Join</span>
                 <ArrowRight className="w-3.5 h-3.5" />
