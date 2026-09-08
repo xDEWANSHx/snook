@@ -6,7 +6,6 @@ import { BallControls } from './components/BallControls';
 import { SetupModal } from './components/SetupModal';
 import { EndGameModal } from './components/EndGameModal';
 import { HistoryDrawer } from './components/HistoryDrawer';
-import { ConfigModal } from './components/ConfigModal';
 import { RoomModal } from './components/RoomModal';
 import { ConfirmActionModal } from './components/ConfirmActionModal';
 
@@ -52,7 +51,6 @@ export const App: React.FC = () => {
   const [isSetupOpen, setIsSetupOpen] = useState(false);
   const [isEndGameOpen, setIsEndGameOpen] = useState(false);
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
-  const [isConfigOpen, setIsConfigOpen] = useState(false);
   const [isRoomOpen, setIsRoomOpen] = useState(false);
   const [confirmModal, setConfirmModal] = useState<{
     isOpen: boolean;
@@ -63,8 +61,6 @@ export const App: React.FC = () => {
     type: 'undo',
     description: '',
   });
-
-  const [, setConfigRefreshKey] = useState(0);
 
   const nextPlayerIndex = (state.activePlayerIndex + 1) % state.players.length;
   const nextPlayerName = state.players[nextPlayerIndex]?.name || 'Next';
@@ -120,7 +116,6 @@ export const App: React.FC = () => {
         onRedo={handleRequestRedo}
         onEndGameClick={() => setIsEndGameOpen(true)}
         onOpenHistory={() => setIsHistoryOpen(true)}
-        onOpenSettings={() => setIsConfigOpen(true)}
         onNewGameClick={() => setIsSetupOpen(true)}
         onOpenRoom={() => setIsRoomOpen(true)}
       />
@@ -170,12 +165,6 @@ export const App: React.FC = () => {
       <HistoryDrawer
         isOpen={isHistoryOpen}
         onClose={() => setIsHistoryOpen(false)}
-      />
-
-      <ConfigModal
-        isOpen={isConfigOpen}
-        onClose={() => setIsConfigOpen(false)}
-        onConfigSaved={() => setConfigRefreshKey(prev => prev + 1)}
       />
 
       <RoomModal

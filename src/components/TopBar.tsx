@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { RotateCcw, RotateCw, Flag, History, Settings, ShieldCheck, Radio, Palette } from 'lucide-react';
-import { isSupabaseConfigured } from '../lib/supabase';
+import { RotateCcw, RotateCw, Flag, History, Radio, Palette } from 'lucide-react';
 
 interface TopBarProps {
   matchStartTime: number;
@@ -15,7 +14,6 @@ interface TopBarProps {
   onRedo: () => void;
   onEndGameClick: () => void;
   onOpenHistory: () => void;
-  onOpenSettings: () => void;
   onNewGameClick: () => void;
   onOpenRoom: () => void;
 }
@@ -33,12 +31,10 @@ export const TopBar: React.FC<TopBarProps> = ({
   onRedo,
   onEndGameClick,
   onOpenHistory,
-  onOpenSettings,
   onNewGameClick,
   onOpenRoom,
 }) => {
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
-  const isSupabaseReady = isSupabaseConfigured();
 
   useEffect(() => {
     const updateTimer = () => {
@@ -163,26 +159,6 @@ export const TopBar: React.FC<TopBarProps> = ({
             aria-label="Past Matches"
           >
             <History className="w-4 h-4" />
-          </button>
-
-          {/* Settings Button */}
-          <button
-            onClick={onOpenSettings}
-            title={isSupabaseReady ? 'Supabase Connected' : 'Setup Supabase Cloud Sync'}
-            className={`p-1.5 sm:p-2 rounded-xl transition active:scale-95 border shadow-sm ${
-              isSupabaseReady
-                ? 'bg-emerald-950 text-emerald-400 border-emerald-600 hover:bg-emerald-900'
-                : isFelt
-                ? 'bg-stone-900 text-stone-400 border-stone-700 hover:bg-stone-800'
-                : 'bg-stone-100 text-stone-600 border-stone-200 hover:bg-stone-200'
-            }`}
-            aria-label="Settings"
-          >
-            {isSupabaseReady ? (
-              <ShieldCheck className="w-4 h-4 text-emerald-400" />
-            ) : (
-              <Settings className="w-4 h-4" />
-            )}
           </button>
 
           {/* End Game Button */}
